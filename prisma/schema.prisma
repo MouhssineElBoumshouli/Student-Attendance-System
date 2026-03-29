@@ -1,0 +1,198 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Authentication & Users ───
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         String   @default("STUDENT") // ADMIN | PROFESSOR | STUDENT
+  locale       String   @default("fr")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  professor Professor?
+  student   Student?
+
+  @@map("users")
+}
+
+// ─── Organization ───
+
+model Department {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  createdAt DateTime @default(now())
+
+  programs Program[]
+
+  @@map("departments")
+}
+
+model Program {
+  id           String     @id @default(cuid())
+  name         String
+  code         String     @unique
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  groups  Group[]
+  courses Course[]
+
+  @@map("programs")
+}
+
+model Group {
+  id        String   @id @default(cuid())
+  name      String
+  programId String
+  program   Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  semester  Int
+  createdAt DateTime @default(now())
+
+  students StudentGroup[]
+  courses  CourseGroup[]
+
+  @@map("groups")
+}
+
+// ─── People ───
+
+model Professor {
+  id           String  @id @default(cuid())
+  userId       String  @unique
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  employeeId   String  @unique
+  departmentId String?
+
+  courses  Course[]
+  sessions Session[]
+
+  @@map("professors")
+}
+
+model Student {
+  id             String @id @default(cuid())
+  userId         String @unique
+  user           User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  studentId      String @unique
+  enrollmentYear Int
+
+  groups      StudentGroup[]
+  attendances Attendance[]
+
+  @@map("students")
+}
+
+model StudentGroup {
+  studentId String
+  groupId   String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  group     Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([studentId, groupId])
+  @@map("student_groups")
+}
+
+// ─── Academics ───
+
+model Room {
+  id        String   @id @default(cuid())
+  name      String
+  building  String?
+  latitude  Float
+  longitude Float
+  radius    Int      @default(100)
+  capacity  Int?
+  createdAt DateTime @default(now())
+
+  sessions Session[]
+
+  @@map("rooms")
+}
+
+model Course {
+  id           String    @id @default(cuid())
+  name         String
+  code         String    @unique
+  programId    String
+  program      Program   @relation(fields: [programId], references: [id])
+  professorId  String
+  professor    Professor @relation(fields: [professorId], references: [id])
+  semester     Int
+  academicYear String
+  totalHours   Int?
+  createdAt    DateTime  @default(now())
+
+  groups   CourseGroup[]
+  sessions Session[]
+
+  @@map("courses")
+}
+
+model CourseGroup {
+  courseId String
+  groupId String
+  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  group   Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([courseId, groupId])
+  @@map("course_groups")
+}
+
+// ─── Sessions & Attendance ───
+
+model Session {
+  id             String   @id @default(cuid())
+  courseId        String
+  course         Course   @relation(fields: [courseId], references: [id])
+  professorId    String
+  professor      Professor @relation(fields: [professorId], references: [id])
+  roomId         String
+  room           Room     @relation(fields: [roomId], references: [id])
+  date           DateTime
+  startTime      DateTime
+  endTime        DateTime
+  status         String   @default("SCHEDULED") // SCHEDULED | ACTIVE | COMPLETED | CANCELLED
+  qrSecret       String?
+  qrRotationSec  Int      @default(20)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  attendances Attendance[]
+
+  @@index([courseId, date])
+  @@index([professorId, status])
+  @@map("sessions")
+}
+
+model Attendance {
+  id         String    @id @default(cuid())
+  sessionId  String
+  session    Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  studentId  String
+  student    Student   @relation(fields: [studentId], references: [id])
+  status     String    @default("ABSENT") // PRESENT | ABSENT | LATE | EXCUSED
+  scannedAt  DateTime?
+  latitude   Float?
+  longitude  Float?
+  deviceHash String?
+  ipAddress  String?
+  verified   Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+
+  @@unique([sessionId, studentId])
+  @@index([studentId, sessionId])
+  @@map("attendances")
+}
