@@ -69,10 +69,10 @@ export default function LiveQrPage() {
       if (canvasRef.current && data.payload && data.payload !== lastPayloadRef.current) {
         lastPayloadRef.current = data.payload;
         QRCode.toCanvas(canvasRef.current, data.payload, {
-          width: 380,
-          margin: 2,
+          width: 500,
+          margin: 3,
           color: { dark: "#000000", light: "#ffffff" },
-          errorCorrectionLevel: "M",
+          errorCorrectionLevel: "L",
         });
       }
 

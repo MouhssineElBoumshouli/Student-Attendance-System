@@ -9,4 +9,4 @@ export const TOKEN_TOLERANCE_WINDOWS = 1;
 export const MAX_CLOCK_SKEW_SEC = 60;
 
 // Token length (hex characters extracted from HMAC)
-export const TOKEN_LENGTH = 16;
+export const TOKEN_LENGTH = 8;
