@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import { Button } from "@/components/ui/button";
@@ -16,11 +16,12 @@ export default function LiveQrPage() {
   const [fullscreen, setFullscreen] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [intervalSec, setIntervalSec] = useState(20);
+  const lastPayloadRef = useRef("");
   const [sessionInfo, setSessionInfo] = useState<{
     courseName: string; roomName: string; presentCount: number; totalCount: number;
   } | null>(null);
 
-  // Fetch session info
+  // Fetch session info (attendance counts)
   useEffect(() => {
     const fetchInfo = async () => {
       try {
@@ -40,64 +41,64 @@ export default function LiveQrPage() {
       } catch { /* ignore */ }
     };
     fetchInfo();
-    const poll = setInterval(fetchInfo, 10000);
+    const poll = setInterval(fetchInfo, 5000);
     return () => clearInterval(poll);
   }, [sessionId]);
 
-  // SSE connection for QR token streaming
-  useEffect(() => {
-    const eventSource = new EventSource(`/api/sessions/${sessionId}/qr-token`);
+  // Poll for QR token every 2 seconds
+  const fetchToken = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}/qr-token`);
+      if (!res.ok) {
+        setConnected(false);
+        return;
+      }
 
-    eventSource.onopen = () => setConnected(true);
+      const data = await res.json();
 
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
+      if (data.closed) {
+        setConnected(false);
+        router.push(`/professor/sessions/${sessionId}`);
+        return;
+      }
 
-        if (data.closed) {
-          setConnected(false);
-          eventSource.close();
-          router.push(`/professor/sessions/${sessionId}`);
-          return;
-        }
+      setConnected(true);
+      setIntervalSec(data.intervalSec || 20);
 
-        setIntervalSec(data.intervalSec || 20);
+      // Only re-render QR if the payload actually changed
+      if (canvasRef.current && data.payload && data.payload !== lastPayloadRef.current) {
+        lastPayloadRef.current = data.payload;
+        QRCode.toCanvas(canvasRef.current, data.payload, {
+          width: 380,
+          margin: 2,
+          color: { dark: "#000000", light: "#ffffff" },
+          errorCorrectionLevel: "M",
+        });
+      }
 
-        // Render QR code
-        if (canvasRef.current && data.payload) {
-          QRCode.toCanvas(canvasRef.current, data.payload, {
-            width: 380,
-            margin: 2,
-            color: { dark: "#000000", light: "#ffffff" },
-            errorCorrectionLevel: "M",
-          });
-        }
-
-        // Start countdown
-        if (data.expiresAt) {
-          const remaining = Math.max(0, Math.floor((data.expiresAt - Date.now()) / 1000));
-          setCountdown(remaining);
-        }
-      } catch { /* ignore parse errors */ }
-    };
-
-    eventSource.onerror = () => {
+      // Update countdown
+      if (data.expiresAt) {
+        const remaining = Math.max(1, Math.floor((data.expiresAt - Date.now()) / 1000));
+        setCountdown(remaining);
+      }
+    } catch {
       setConnected(false);
-    };
-
-    return () => {
-      eventSource.close();
-    };
+    }
   }, [sessionId, router]);
 
-  // Countdown timer
   useEffect(() => {
-    if (countdown <= 0) return;
+    fetchToken();
+    const poll = setInterval(fetchToken, 2000);
+    return () => clearInterval(poll);
+  }, [fetchToken]);
+
+  // Countdown timer (visual only, ticks every second)
+  useEffect(() => {
     const timer = setInterval(() => {
       setCountdown((prev) => Math.max(0, prev - 1));
     }, 1000);
     return () => clearInterval(timer);
-  }, [countdown]);
+  }, []);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -125,9 +126,9 @@ export default function LiveQrPage() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 text-sm">
             {connected ? (
-              <><Wifi className="h-4 w-4 text-emerald-400" /><span className="text-emerald-400">Connecte</span></>
+              <><Wifi className="h-4 w-4 text-emerald-400" /><span className="text-emerald-400">Connecté</span></>
             ) : (
-              <><WifiOff className="h-4 w-4 text-red-400" /><span className="text-red-400">Deconnecte</span></>
+              <><WifiOff className="h-4 w-4 text-red-400" /><span className="text-red-400">Déconnecté</span></>
             )}
           </div>
           <Button
@@ -189,7 +190,7 @@ export default function LiveQrPage() {
 
         {/* Instructions */}
         <div className="text-center text-white/60 text-sm max-w-md">
-          <p>Scannez ce QR code avec votre telephone</p>
+          <p>Scannez ce QR code avec l&apos;application sur votre téléphone</p>
           <p>Le code change toutes les {intervalSec} secondes</p>
         </div>
 
@@ -199,7 +200,7 @@ export default function LiveQrPage() {
             <Users className="h-4 w-4 text-emerald-400" />
             <span className="font-semibold">{sessionInfo.presentCount}</span>
             <span className="text-white/60">/</span>
-            <span className="text-white/60">{sessionInfo.totalCount} presents</span>
+            <span className="text-white/60">{sessionInfo.totalCount} présents</span>
           </div>
         )}
       </div>

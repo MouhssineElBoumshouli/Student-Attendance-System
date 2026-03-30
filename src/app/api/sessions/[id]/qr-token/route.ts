@@ -1,13 +1,13 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateQrToken } from "@/lib/qr/generate";
 
 /**
  * GET /api/sessions/[id]/qr-token
  *
- * Server-Sent Events (SSE) endpoint that streams rotating QR tokens.
- * The professor's browser connects to this and re-renders the QR code
- * each time a new token arrives.
+ * Returns the current QR token for an active session.
+ * The professor's browser polls this endpoint every few seconds
+ * to get the latest rotating token.
  */
 export async function GET(
   _req: NextRequest,
@@ -20,77 +20,28 @@ export async function GET(
     select: { qrSecret: true, qrRotationSec: true, status: true },
   });
 
-  if (!session || session.status !== "ACTIVE" || !session.qrSecret) {
-    return new Response(
-      JSON.stringify({ error: "Séance non active" }),
-      { status: 400, headers: { "Content-Type": "application/json" } }
-    );
+  if (!session) {
+    return NextResponse.json({ error: "Séance non trouvée" }, { status: 404 });
   }
 
-  const secret = session.qrSecret;
-  const intervalSec = session.qrRotationSec;
+  if (session.status !== "ACTIVE" || !session.qrSecret) {
+    return NextResponse.json({ closed: true, reason: "Session terminée" });
+  }
 
-  const stream = new ReadableStream({
-    start(controller) {
-      const encoder = new TextEncoder();
+  const { token, timestamp, expiresAt } = generateQrToken(
+    session.qrSecret,
+    session.qrRotationSec
+  );
 
-      const sendToken = () => {
-        try {
-          const { token, timestamp, expiresAt } = generateQrToken(secret, intervalSec);
-
-          const payload = JSON.stringify({
-            s: id,           // session ID
-            t: token,        // HMAC token
-            ts: timestamp,   // current timestamp (seconds)
-          });
-
-          const data = `data: ${JSON.stringify({ payload, expiresAt, intervalSec })}\n\n`;
-          controller.enqueue(encoder.encode(data));
-        } catch {
-          controller.close();
-        }
-      };
-
-      // Send first token immediately
-      sendToken();
-
-      // Then send a new token every intervalSec seconds
-      const interval = setInterval(sendToken, intervalSec * 1000);
-
-      // Also check if session is still active every 30 seconds
-      const statusCheck = setInterval(async () => {
-        try {
-          const current = await prisma.session.findUnique({
-            where: { id },
-            select: { status: true },
-          });
-
-          if (!current || current.status !== "ACTIVE") {
-            const closeMsg = `data: ${JSON.stringify({ closed: true, reason: "Session terminée" })}\n\n`;
-            controller.enqueue(encoder.encode(closeMsg));
-            clearInterval(interval);
-            clearInterval(statusCheck);
-            controller.close();
-          }
-        } catch {
-          // Ignore errors, will retry on next check
-        }
-      }, 30000);
-
-      // Cleanup on abort
-      _req.signal.addEventListener("abort", () => {
-        clearInterval(interval);
-        clearInterval(statusCheck);
-        try { controller.close(); } catch { /* already closed */ }
-      });
-    },
+  const payload = JSON.stringify({
+    s: id,
+    t: token,
+    ts: timestamp,
   });
 
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
-    },
+  return NextResponse.json({
+    payload,
+    expiresAt,
+    intervalSec: session.qrRotationSec,
   });
 }
