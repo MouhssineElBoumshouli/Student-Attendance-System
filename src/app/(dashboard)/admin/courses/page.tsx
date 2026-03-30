@@ -77,7 +77,7 @@ export default function CoursesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Cours</h1>
-          <p className="text-gray-500 mt-1">Gerez les cours et leurs attributions</p>
+          <p className="text-gray-500 mt-1">Gérez les cours et leurs attributions</p>
         </div>
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="h-4 w-4" /> Ajouter

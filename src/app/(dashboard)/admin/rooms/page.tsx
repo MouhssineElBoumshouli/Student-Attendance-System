@@ -42,7 +42,7 @@ export default function RoomsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Salles</h1>
-          <p className="text-gray-500 mt-1">Gerez les salles avec leurs coordonnees GPS</p>
+          <p className="text-gray-500 mt-1">Gérez les salles avec leurs coordonnées GPS</p>
         </div>
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="h-4 w-4" /> Ajouter

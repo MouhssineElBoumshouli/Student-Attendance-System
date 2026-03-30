@@ -55,8 +55,8 @@ export default function ProgramsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Filieres</h1>
-          <p className="text-gray-500 mt-1">Gerez les filieres et programmes d&apos;etudes</p>
+          <h1 className="text-2xl font-bold text-gray-900">Filières</h1>
+          <p className="text-gray-500 mt-1">Gérez les filières et programmes d&apos;études</p>
         </div>
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="h-4 w-4" /> Ajouter
@@ -118,9 +118,9 @@ export default function ProgramsPage() {
               <Input placeholder="Ex: GI" value={code} onChange={(e) => setCode(e.target.value)} required />
             </div>
             <div className="space-y-2">
-              <Label>Departement</Label>
+              <Label>Département</Label>
               <Select value={departmentId} onValueChange={setDepartmentId}>
-                <SelectTrigger><SelectValue placeholder="Choisir un departement" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Choisir un département" /></SelectTrigger>
                 <SelectContent>
                   {departments.map((d) => (
                     <SelectItem key={d.id} value={d.id}>{d.name} ({d.code})</SelectItem>
@@ -131,7 +131,7 @@ export default function ProgramsPage() {
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Annuler</Button>
               <Button type="submit" disabled={submitting || !departmentId}>
-                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Creer"}
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Créer"}
               </Button>
             </DialogFooter>
           </form>

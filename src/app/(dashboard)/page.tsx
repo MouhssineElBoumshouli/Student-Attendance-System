@@ -26,8 +26,8 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-bold text-gray-900">Bonjour, {firstName}</h1>
         <p className="text-gray-500 mt-1">
           {role === "ADMIN" && "Vue d'ensemble de la plateforme"}
-          {role === "PROFESSOR" && "Gerez vos seances et suivez les presences"}
-          {role === "STUDENT" && "Consultez vos presences et scannez les QR codes"}
+          {role === "PROFESSOR" && "Gérez vos séances et suivez les présences"}
+          {role === "STUDENT" && "Consultez vos présences et scannez les QR codes"}
         </p>
       </div>
 
@@ -46,10 +46,10 @@ function AdminDashboard() {
   }, []);
 
   const items = [
-    { label: "Etudiants", value: stats.students, icon: Users, color: "bg-blue-50 text-blue-600" },
+    { label: "Étudiants", value: stats.students, icon: Users, color: "bg-blue-50 text-blue-600" },
     { label: "Professeurs", value: stats.professors, icon: GraduationCap, color: "bg-emerald-50 text-emerald-600" },
     { label: "Cours", value: stats.courses, icon: BookOpen, color: "bg-violet-50 text-violet-600" },
-    { label: "Seances actives", value: stats.activeSessions, icon: CalendarDays, color: "bg-amber-50 text-amber-600" },
+    { label: "Séances actives", value: stats.activeSessions, icon: CalendarDays, color: "bg-amber-50 text-amber-600" },
   ];
 
   return (
@@ -84,8 +84,8 @@ function ProfessorDashboard({ professorId }: { professorId: string | null }) {
 
   const items = [
     { label: "Mes cours", value: stats.courses, icon: BookOpen, color: "bg-blue-50 text-blue-600" },
-    { label: "Seances ce mois", value: stats.monthSessions, icon: CalendarDays, color: "bg-emerald-50 text-emerald-600" },
-    { label: "Taux de presence", value: `${stats.attendanceRate}%`, icon: BarChart3, color: "bg-violet-50 text-violet-600" },
+    { label: "Séances ce mois", value: stats.monthSessions, icon: CalendarDays, color: "bg-emerald-50 text-emerald-600" },
+    { label: "Taux de présence", value: `${stats.attendanceRate}%`, icon: BarChart3, color: "bg-violet-50 text-violet-600" },
   ];
 
   return (
@@ -109,7 +109,7 @@ function ProfessorDashboard({ professorId }: { professorId: string | null }) {
         })}
       </div>
       <Link href="/professor/sessions/new">
-        <Button size="lg"><Plus className="h-4 w-4" /> Nouvelle seance</Button>
+        <Button size="lg"><Plus className="h-4 w-4" /> Nouvelle séance</Button>
       </Link>
     </div>
   );
@@ -126,9 +126,9 @@ function StudentDashboard({ studentId }: { studentId: string | null }) {
   const rateColor = stats.attendanceRate >= 80 ? "text-emerald-600" : stats.attendanceRate >= 60 ? "text-amber-600" : "text-red-600";
 
   const items = [
-    { label: "Taux de presence", value: `${stats.attendanceRate}%`, icon: BarChart3, color: "bg-blue-50 text-blue-600", textColor: rateColor },
-    { label: "Presences ce mois", value: stats.monthPresent, icon: CalendarDays, color: "bg-emerald-50 text-emerald-600" },
-    { label: "Total seances", value: stats.total, icon: BookOpen, color: "bg-violet-50 text-violet-600" },
+    { label: "Taux de présence", value: `${stats.attendanceRate}%`, icon: BarChart3, color: "bg-blue-50 text-blue-600", textColor: rateColor },
+    { label: "Présences ce mois", value: stats.monthPresent, icon: CalendarDays, color: "bg-emerald-50 text-emerald-600" },
+    { label: "Total séances", value: stats.total, icon: BookOpen, color: "bg-violet-50 text-violet-600" },
   ];
 
   return (

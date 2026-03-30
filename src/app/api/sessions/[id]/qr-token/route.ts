@@ -22,7 +22,7 @@ export async function GET(
 
   if (!session || session.status !== "ACTIVE" || !session.qrSecret) {
     return new Response(
-      JSON.stringify({ error: "Seance non active" }),
+      JSON.stringify({ error: "Séance non active" }),
       { status: 400, headers: { "Content-Type": "application/json" } }
     );
   }
@@ -66,7 +66,7 @@ export async function GET(
           });
 
           if (!current || current.status !== "ACTIVE") {
-            const closeMsg = `data: ${JSON.stringify({ closed: true, reason: "Session terminee" })}\n\n`;
+            const closeMsg = `data: ${JSON.stringify({ closed: true, reason: "Session terminée" })}\n\n`;
             controller.enqueue(encoder.encode(closeMsg));
             clearInterval(interval);
             clearInterval(statusCheck);

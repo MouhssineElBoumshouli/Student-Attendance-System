@@ -17,11 +17,11 @@ export async function POST(
   const session = await prisma.session.findUnique({ where: { id } });
 
   if (!session) {
-    return NextResponse.json({ error: "Seance non trouvee" }, { status: 404 });
+    return NextResponse.json({ error: "Séance non trouvée" }, { status: 404 });
   }
 
   if (session.status !== "ACTIVE") {
-    return NextResponse.json({ error: "La seance n'est pas active" }, { status: 400 });
+    return NextResponse.json({ error: "La séance n'est pas active" }, { status: 400 });
   }
 
   // Get attendance stats before deactivating
@@ -45,6 +45,6 @@ export async function POST(
   return NextResponse.json({
     success: true,
     stats: { present, total, rate: total > 0 ? Math.round((present / total) * 100) : 0 },
-    message: `Seance terminee: ${present}/${total} presents`,
+    message: `Séance terminée : ${present}/${total} présents`,
   });
 }

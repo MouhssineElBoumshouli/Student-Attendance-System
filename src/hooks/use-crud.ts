@@ -16,7 +16,7 @@ export function useCrud<T extends { id?: string }>(apiUrl: string) {
       const json = await res.json();
       setData(json);
     } catch {
-      toast.error("Erreur lors du chargement des donnees");
+      toast.error("Erreur lors du chargement des données");
     } finally {
       setLoading(false);
     }
@@ -36,11 +36,11 @@ export function useCrud<T extends { id?: string }>(apiUrl: string) {
 
       if (!res.ok) {
         const err = await res.json();
-        toast.error(err.error || "Erreur lors de la creation");
+        toast.error(err.error || "Erreur lors de la création");
         return false;
       }
 
-      toast.success("Cree avec succes");
+      toast.success("Créé avec succès");
       setDialogOpen(false);
       await fetchData();
       return true;
@@ -60,7 +60,7 @@ export function useCrud<T extends { id?: string }>(apiUrl: string) {
         return false;
       }
 
-      toast.success("Supprime avec succes");
+      toast.success("Supprimé avec succès");
       await fetchData();
       return true;
     } catch {

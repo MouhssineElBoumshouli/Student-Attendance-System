@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
@@ -8,10 +8,24 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#111827",
+};
+
 export const metadata: Metadata = {
-  title: "UEMF Presence - Systeme de gestion des presences",
+  title: "UEMF Présence - Système de gestion des présences",
   description:
-    "Plateforme de gestion des presences par QR code pour l'Universite Euro-Mediterraneenne de Fes",
+    "Plateforme de gestion des présences par QR code pour l'Université Euro-Méditerranéenne de Fès",
+  manifest: undefined,
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "UEMF Présence",
+  },
 };
 
 export default function RootLayout({

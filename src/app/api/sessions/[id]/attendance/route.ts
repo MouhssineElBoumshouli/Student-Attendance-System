@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { validateQrToken } from "@/lib/qr/validate";
 import { isWithinGeofence } from "@/lib/geo/validate";
+import { submitAttendanceSchema, updateAttendanceSchema, parseBody } from "@/lib/validations";
 import crypto from "crypto";
 
 /**
@@ -43,14 +44,16 @@ export async function POST(
 
   try {
     const body = await req.json();
-    const { token, timestamp, latitude, longitude, studentId, deviceInfo } = body;
+    const parsed = parseBody(submitAttendanceSchema, body);
 
-    if (!token || !timestamp || !studentId) {
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Donnees manquantes" },
+        { error: parsed.error },
         { status: 400 }
       );
     }
+
+    const { token, timestamp, latitude, longitude, studentId, deviceInfo } = parsed.data;
 
     // 1. Check session exists and is active
     const session = await prisma.session.findUnique({
@@ -60,14 +63,14 @@ export async function POST(
 
     if (!session) {
       return NextResponse.json(
-        { error: "Seance non trouvee" },
+        { error: "Séance non trouvée" },
         { status: 404 }
       );
     }
 
     if (session.status !== "ACTIVE" || !session.qrSecret) {
       return NextResponse.json(
-        { error: "Cette seance n'est pas active" },
+        { error: "Cette séance n'est pas active" },
         { status: 400 }
       );
     }
@@ -82,7 +85,7 @@ export async function POST(
 
     if (!isTokenValid) {
       return NextResponse.json(
-        { error: "QR code expire ou invalide. Veuillez re-scanner." },
+        { error: "QR code expiré ou invalide. Veuillez re-scanner." },
         { status: 400 }
       );
     }
@@ -96,14 +99,14 @@ export async function POST(
 
     if (!attendance) {
       return NextResponse.json(
-        { error: "Vous n'etes pas inscrit a cette seance" },
+        { error: "Vous n'êtes pas inscrit à cette séance" },
         { status: 403 }
       );
     }
 
     if (attendance.status === "PRESENT") {
       return NextResponse.json(
-        { error: "Presence deja enregistree", alreadyPresent: true },
+        { error: "Présence déjà enregistrée", alreadyPresent: true },
         { status: 409 }
       );
     }
@@ -177,8 +180,8 @@ export async function POST(
       verified,
       distance: geoDistance,
       message: isLate
-        ? "Presence enregistree (en retard)"
-        : "Presence enregistree avec succes",
+        ? "Présence enregistrée (en retard)"
+        : "Présence enregistrée avec succès",
     });
   } catch (error) {
     console.error("Attendance error:", error);
@@ -199,16 +202,13 @@ export async function PATCH(
 ) {
   const { id: sessionId } = await params;
   const body = await req.json();
-  const { attendanceId, status } = body;
+  const parsed = parseBody(updateAttendanceSchema, body);
 
-  if (!attendanceId || !status) {
-    return NextResponse.json({ error: "Donnees manquantes" }, { status: 400 });
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const validStatuses = ["PRESENT", "ABSENT", "LATE", "EXCUSED"];
-  if (!validStatuses.includes(status)) {
-    return NextResponse.json({ error: "Statut invalide" }, { status: 400 });
-  }
+  const { attendanceId, status } = parsed.data;
 
   const attendance = await prisma.attendance.update({
     where: { id: attendanceId, sessionId },

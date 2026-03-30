@@ -52,7 +52,7 @@ export default function ProfessorsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Professeurs</h1>
-          <p className="text-gray-500 mt-1">Gerez les comptes des professeurs</p>
+          <p className="text-gray-500 mt-1">Gérez les comptes des professeurs</p>
         </div>
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="h-4 w-4" /> Ajouter
@@ -128,7 +128,7 @@ export default function ProfessorsPage() {
                 <Input placeholder="Ex: PROF-004" value={form.employeeId} onChange={(e) => updateForm("employeeId", e.target.value)} required />
               </div>
               <div className="space-y-2">
-                <Label>Departement</Label>
+                <Label>Département</Label>
                 <Select value={form.departmentId} onValueChange={(v) => updateForm("departmentId", v)}>
                   <SelectTrigger><SelectValue placeholder="Optionnel" /></SelectTrigger>
                   <SelectContent>
@@ -139,7 +139,7 @@ export default function ProfessorsPage() {
                 </Select>
               </div>
             </div>
-            <p className="text-xs text-gray-400">Mot de passe par defaut: uemf2024</p>
+            <p className="text-xs text-gray-400">Mot de passe par défaut: uemf2024</p>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Annuler</Button>
               <Button type="submit" disabled={submitting}>

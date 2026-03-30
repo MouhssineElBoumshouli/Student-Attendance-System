@@ -20,10 +20,10 @@ interface AttendanceRecord {
 }
 
 const statusConfig: Record<string, { label: string; icon: React.ReactNode; variant: "success" | "destructive" | "warning" | "default" }> = {
-  PRESENT: { label: "Present", icon: <CheckCircle2 className="h-4 w-4" />, variant: "success" },
+  PRESENT: { label: "Présent", icon: <CheckCircle2 className="h-4 w-4" />, variant: "success" },
   ABSENT: { label: "Absent", icon: <XCircle className="h-4 w-4" />, variant: "destructive" },
   LATE: { label: "En retard", icon: <AlertTriangle className="h-4 w-4" />, variant: "warning" },
-  EXCUSED: { label: "Excuse", icon: <MinusCircle className="h-4 w-4" />, variant: "default" },
+  EXCUSED: { label: "Excusé", icon: <MinusCircle className="h-4 w-4" />, variant: "default" },
 };
 
 export default function StudentHistoryPage() {
@@ -100,7 +100,7 @@ export default function StudentHistoryPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Mon historique</h1>
-        <p className="text-gray-500 mt-1">Consultez votre historique de presences</p>
+        <p className="text-gray-500 mt-1">Consultez votre historique de présences</p>
       </div>
 
       {loading ? (
@@ -111,7 +111,7 @@ export default function StudentHistoryPage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
               { label: "Taux global", value: `${rate}%`, color: rate >= 80 ? "text-emerald-600" : rate >= 60 ? "text-amber-600" : "text-red-600" },
-              { label: "Presents", value: present, color: "text-emerald-600" },
+              { label: "Présents", value: present, color: "text-emerald-600" },
               { label: "En retard", value: late, color: "text-amber-600" },
               { label: "Absents", value: absent, color: "text-red-600" },
             ].map((stat) => (
@@ -162,13 +162,13 @@ export default function StudentHistoryPage() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
-                <History className="h-4 w-4" /> Historique ({total} seances)
+                <History className="h-4 w-4" /> Historique ({total} séances)
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               {total === 0 ? (
                 <div className="text-center py-8 text-gray-500 text-sm">
-                  Aucune seance enregistree
+                  Aucune séance enregistrée
                 </div>
               ) : (
                 <div className="divide-y">
@@ -184,7 +184,7 @@ export default function StudentHistoryPage() {
                             <p className="text-sm font-medium text-gray-900">{record.session.course.name}</p>
                             <p className="text-xs text-gray-500">
                               {formatDate(record.session.date)} &middot; {formatTime(record.session.startTime)}
-                              {record.scannedAt && ` &middot; Scanne a ${formatTime(record.scannedAt)}`}
+                              {record.scannedAt && ` &middot; Scanné à ${formatTime(record.scannedAt)}`}
                             </p>
                           </div>
                         </div>

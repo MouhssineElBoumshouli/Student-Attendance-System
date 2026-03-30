@@ -7,5 +7,33 @@
 @layer base {
   body {
     @apply bg-gray-50 text-gray-900;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Safe area padding for notched devices */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Prevent pull-to-refresh on scanner page */
+  .no-overscroll {
+    overscroll-behavior: none;
+  }
+
+  /* Smooth touch scrolling */
+  .touch-scroll {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Minimum touch target size (48px per WCAG 2.5.8) */
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Fix for select items which need smaller touch targets */
+  [role="option"] {
+    min-height: 36px;
+    min-width: auto;
   }
 }

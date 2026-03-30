@@ -36,7 +36,7 @@ const statusIcon: Record<string, React.ReactNode> = {
 };
 
 const statusLabel: Record<string, string> = {
-  PRESENT: "Present", ABSENT: "Absent", LATE: "En retard", EXCUSED: "Excuse",
+  PRESENT: "Présent", ABSENT: "Absent", LATE: "En retard", EXCUSED: "Excusé",
 };
 
 const statusBadge: Record<string, "success" | "destructive" | "warning" | "default"> = {
@@ -108,7 +108,7 @@ export default function SessionDetailPage() {
         body: JSON.stringify({ attendanceId, status: newStatus }),
       });
       if (res.ok) {
-        toast.success("Statut mis a jour");
+        toast.success("Statut mis à jour");
         await fetchSession();
       }
     } catch { toast.error("Erreur"); }
@@ -119,7 +119,7 @@ export default function SessionDetailPage() {
   }
 
   if (!session) {
-    return <div className="text-center py-12 text-gray-500">Seance non trouvee</div>;
+    return <div className="text-center py-12 text-gray-500">Séance non trouvée</div>;
   }
 
   const present = session.attendances.filter((a) => a.status === "PRESENT").length;
@@ -151,7 +151,7 @@ export default function SessionDetailPage() {
           {session.status === "SCHEDULED" && (
             <Button onClick={handleActivate} disabled={activating} className="bg-emerald-600 hover:bg-emerald-700">
               {activating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-              Activer la seance
+              Activer la séance
             </Button>
           )}
           {session.status === "ACTIVE" && (
@@ -168,7 +168,7 @@ export default function SessionDetailPage() {
             </>
           )}
           <Badge variant={session.status === "ACTIVE" ? "success" : session.status === "COMPLETED" ? "default" : "secondary"}>
-            {session.status === "ACTIVE" ? "En cours" : session.status === "COMPLETED" ? "Terminee" : session.status === "CANCELLED" ? "Annulee" : "Planifiee"}
+            {session.status === "ACTIVE" ? "En cours" : session.status === "COMPLETED" ? "Terminée" : session.status === "CANCELLED" ? "Annulée" : "Planifiée"}
           </Badge>
         </div>
       </div>
@@ -176,10 +176,10 @@ export default function SessionDetailPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {[
-          { label: "Presents", value: present, color: "text-emerald-600 bg-emerald-50" },
+          { label: "Présents", value: present, color: "text-emerald-600 bg-emerald-50" },
           { label: "En retard", value: late, color: "text-amber-600 bg-amber-50" },
           { label: "Absents", value: absent, color: "text-red-600 bg-red-50" },
-          { label: "Excuses", value: excused, color: "text-blue-600 bg-blue-50" },
+          { label: "Excusés", value: excused, color: "text-blue-600 bg-blue-50" },
           { label: "Taux", value: `${rate}%`, color: "text-gray-900 bg-gray-50" },
         ].map((stat) => (
           <Card key={stat.label}>
@@ -196,25 +196,25 @@ export default function SessionDetailPage() {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Liste de presence ({total} etudiants)
+            Liste de présence ({total} étudiants)
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {total === 0 ? (
             <div className="text-center py-8 text-gray-500 text-sm">
               {session.status === "SCHEDULED"
-                ? "Activez la seance pour generer la liste de presence"
-                : "Aucun etudiant inscrit"}
+                ? "Activez la séance pour générer la liste de présence"
+                : "Aucun étudiant inscrit"}
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-200 bg-gray-50/50">
-                    <th className="text-left py-3 px-4 font-medium text-gray-500">Etudiant</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-500">Étudiant</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-500">Statut</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-500">Heure</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-500">Verifie</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-500">Vérifié</th>
                     <th className="text-right py-3 px-4 font-medium text-gray-500">Action</th>
                   </tr>
                 </thead>
@@ -241,7 +241,7 @@ export default function SessionDetailPage() {
                         {att.scannedAt && (
                           att.verified
                             ? <Badge variant="success">GPS OK</Badge>
-                            : <Badge variant="warning">Non verifie</Badge>
+                            : <Badge variant="warning">Non vérifié</Badge>
                         )}
                       </td>
                       <td className="py-3 px-4 text-right">
@@ -253,10 +253,10 @@ export default function SessionDetailPage() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="PRESENT">Present</SelectItem>
+                            <SelectItem value="PRESENT">Présent</SelectItem>
                             <SelectItem value="ABSENT">Absent</SelectItem>
                             <SelectItem value="LATE">En retard</SelectItem>
-                            <SelectItem value="EXCUSED">Excuse</SelectItem>
+                            <SelectItem value="EXCUSED">Excusé</SelectItem>
                           </SelectContent>
                         </Select>
                       </td>

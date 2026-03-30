@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { createSessionSchema, parseBody } from "@/lib/validations";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -29,11 +30,13 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { courseId, professorId, roomId, date, startTime, endTime } = body;
+    const parsed = parseBody(createSessionSchema, body);
 
-    if (!courseId || !professorId || !roomId || !date || !startTime || !endTime) {
-      return NextResponse.json({ error: "Tous les champs sont requis" }, { status: 400 });
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
+
+    const { courseId, professorId, roomId, date, startTime, endTime } = parsed.data;
 
     const session = await prisma.session.create({
       data: {

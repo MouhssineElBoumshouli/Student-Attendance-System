@@ -31,12 +31,12 @@ interface NavItem {
 
 const adminNav: NavItem[] = [
   { label: "Tableau de bord", href: "/", icon: LayoutDashboard },
-  { label: "Departements", href: "/admin/departments", icon: Building2 },
-  { label: "Filieres", href: "/admin/programs", icon: Layers },
+  { label: "Départements", href: "/admin/departments", icon: Building2 },
+  { label: "Filières", href: "/admin/programs", icon: Layers },
   { label: "Groupes", href: "/admin/groups", icon: UsersRound },
   { label: "Salles", href: "/admin/rooms", icon: DoorOpen },
   { label: "Professeurs", href: "/admin/professors", icon: GraduationCap },
-  { label: "Etudiants", href: "/admin/students", icon: Users },
+  { label: "Étudiants", href: "/admin/students", icon: Users },
   { label: "Cours", href: "/admin/courses", icon: BookOpen },
   { label: "Analytiques", href: "/admin/analytics", icon: BarChart3 },
 ];
@@ -44,7 +44,7 @@ const adminNav: NavItem[] = [
 const professorNav: NavItem[] = [
   { label: "Tableau de bord", href: "/", icon: LayoutDashboard },
   { label: "Mes cours", href: "/professor/courses", icon: BookOpen },
-  { label: "Seances", href: "/professor/sessions", icon: CalendarDays },
+  { label: "Séances", href: "/professor/sessions", icon: CalendarDays },
   { label: "Rapports", href: "/professor/reports", icon: BarChart3 },
 ];
 
@@ -74,7 +74,7 @@ export function Sidebar() {
       ? "Administrateur"
       : role === "PROFESSOR"
       ? "Professeur"
-      : "Etudiant";
+      : "Étudiant";
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
@@ -89,7 +89,7 @@ export function Sidebar() {
           <QrCode className="h-5 w-5 text-white" />
         </div>
         <div>
-          <h1 className="text-base font-bold text-white tracking-tight">UEMF Presence</h1>
+          <h1 className="text-base font-bold text-white tracking-tight">UEMF Présence</h1>
           <p className="text-[11px] text-gray-400 font-medium">{roleLabel}</p>
         </div>
       </div>
@@ -137,7 +137,7 @@ export function Sidebar() {
           className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-gray-800 hover:text-red-400 transition-colors cursor-pointer"
         >
           <LogOut className="h-4 w-4" />
-          Se deconnecter
+          Se déconnecter
         </button>
       </div>
     </>

@@ -62,8 +62,8 @@ export default function StudentsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Etudiants</h1>
-          <p className="text-gray-500 mt-1">{data.length} etudiant{data.length !== 1 ? "s" : ""} inscrits</p>
+          <h1 className="text-2xl font-bold text-gray-900">Étudiants</h1>
+          <p className="text-gray-500 mt-1">{data.length} étudiant{data.length !== 1 ? "s" : ""} inscrits</p>
         </div>
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="h-4 w-4" /> Ajouter

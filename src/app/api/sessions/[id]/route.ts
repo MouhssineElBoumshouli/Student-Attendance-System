@@ -37,7 +37,7 @@ export async function GET(
   });
 
   if (!session) {
-    return NextResponse.json({ error: "Seance non trouvee" }, { status: 404 });
+    return NextResponse.json({ error: "Séance non trouvée" }, { status: 404 });
   }
 
   return NextResponse.json(session);

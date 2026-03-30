@@ -169,7 +169,7 @@ export default function StudentScanPage() {
       requestAnimationFrame(scan);
     } catch {
       setScanState("error");
-      setMessage("Impossible d'acceder a la camera. Verifiez les permissions.");
+      setMessage("Impossible d'accéder à la caméra. Vérifiez les permissions.");
     }
   }, [submitAttendance]);
 
@@ -182,7 +182,7 @@ export default function StudentScanPage() {
     <div className="max-w-lg mx-auto space-y-6">
       <div className="text-center">
         <h1 className="text-2xl font-bold text-gray-900">Scanner QR Code</h1>
-        <p className="text-gray-500 mt-1">Scannez le QR code affiche par votre professeur</p>
+        <p className="text-gray-500 mt-1">Scannez le QR code affiché par votre professeur</p>
       </div>
 
       <Card className="overflow-hidden">
@@ -193,13 +193,13 @@ export default function StudentScanPage() {
                 <QrCode className="h-10 w-10 text-blue-600" />
               </div>
               <h2 className="text-lg font-semibold text-gray-900 mb-2">
-                Pret a scanner
+                Prêt à scanner
               </h2>
               <p className="text-sm text-gray-500 mb-6 max-w-xs">
-                Pointez votre camera vers le QR code affiche sur l&apos;ecran du professeur
+                Pointez votre caméra vers le QR code affiché sur l&apos;écran du professeur
               </p>
               <Button onClick={startScanning} size="lg">
-                <Camera className="h-4 w-4" /> Ouvrir la camera
+                <Camera className="h-4 w-4" /> Ouvrir la caméra
               </Button>
             </div>
           )}
@@ -250,21 +250,21 @@ export default function StudentScanPage() {
                 <CheckCircle2 className="h-10 w-10 text-emerald-600" />
               </div>
               <h2 className="text-xl font-bold text-emerald-700 mb-2">
-                {scanDetails.status === "LATE" ? "Present (en retard)" : "Present !"}
+                {scanDetails.status === "LATE" ? "Présent (en retard)" : "Présent !"}
               </h2>
               <p className="text-gray-600 mb-4">{message}</p>
               {scanDetails.distance !== null && scanDetails.distance !== undefined && (
                 <div className="flex items-center gap-1 text-sm text-gray-500 mb-4">
                   <MapPin className="h-3.5 w-3.5" />
                   {scanDetails.verified
-                    ? `GPS verifie (${scanDetails.distance}m)`
-                    : `GPS non verifie (${scanDetails.distance}m)`}
+                    ? `GPS vérifié (${scanDetails.distance}m)`
+                    : `GPS non vérifié (${scanDetails.distance}m)`}
                 </div>
               )}
               {scanDetails.status === "LATE" && (
                 <div className="flex items-center gap-2 text-amber-600 text-sm mb-4">
                   <AlertTriangle className="h-4 w-4" />
-                  Vous etes arrive en retard
+                  Vous êtes arrivé en retard
                 </div>
               )}
             </div>
@@ -275,7 +275,7 @@ export default function StudentScanPage() {
               <div className="w-20 h-20 rounded-full bg-blue-50 flex items-center justify-center mb-6">
                 <CheckCircle2 className="h-10 w-10 text-blue-600" />
               </div>
-              <h2 className="text-xl font-bold text-blue-700 mb-2">Deja enregistre</h2>
+              <h2 className="text-xl font-bold text-blue-700 mb-2">Déjà enregistré</h2>
               <p className="text-gray-600">{message}</p>
             </div>
           )}
@@ -288,7 +288,7 @@ export default function StudentScanPage() {
               <h2 className="text-xl font-bold text-red-700 mb-2">Erreur</h2>
               <p className="text-gray-600 mb-6">{message}</p>
               <Button onClick={() => { setScanState("idle"); }} variant="outline">
-                <RefreshCw className="h-4 w-4" /> Reessayer
+                <RefreshCw className="h-4 w-4" /> Réessayer
               </Button>
             </div>
           )}

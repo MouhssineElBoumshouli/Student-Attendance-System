@@ -36,15 +36,15 @@ export async function POST(
   });
 
   if (!session) {
-    return NextResponse.json({ error: "Seance non trouvee" }, { status: 404 });
+    return NextResponse.json({ error: "Séance non trouvée" }, { status: 404 });
   }
 
   if (session.status === "ACTIVE") {
-    return NextResponse.json({ error: "Seance deja active" }, { status: 400 });
+    return NextResponse.json({ error: "Séance déjà active" }, { status: 400 });
   }
 
   if (session.status === "COMPLETED" || session.status === "CANCELLED") {
-    return NextResponse.json({ error: "Seance terminee ou annulee" }, { status: 400 });
+    return NextResponse.json({ error: "Séance terminée ou annulée" }, { status: 400 });
   }
 
   // Generate secret for HMAC-based QR tokens
@@ -81,6 +81,6 @@ export async function POST(
   return NextResponse.json({
     success: true,
     studentCount: studentIds.size,
-    message: `Seance activee avec ${studentIds.size} etudiants`,
+    message: `Séance activée avec ${studentIds.size} étudiants`,
   });
 }

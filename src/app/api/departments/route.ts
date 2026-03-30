@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { createDepartmentSchema, parseBody } from "@/lib/validations";
 
 export async function GET() {
   const departments = await prisma.department.findMany({
@@ -12,11 +13,13 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, code } = body;
+    const parsed = parseBody(createDepartmentSchema, body);
 
-    if (!name || !code) {
-      return NextResponse.json({ error: "Nom et code requis" }, { status: 400 });
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
+
+    const { name, code } = parsed.data;
 
     const department = await prisma.department.create({
       data: { name, code: code.toUpperCase() },
@@ -26,7 +29,7 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     const prismaError = error as { code?: string };
     if (prismaError.code === "P2002") {
-      return NextResponse.json({ error: "Ce code existe deja" }, { status: 409 });
+      return NextResponse.json({ error: "Ce code existe déjà" }, { status: 409 });
     }
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }

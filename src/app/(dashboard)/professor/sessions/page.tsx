@@ -17,10 +17,10 @@ interface Session {
 }
 
 const statusConfig: Record<string, { label: string; variant: "default" | "success" | "secondary" | "destructive" | "warning" }> = {
-  SCHEDULED: { label: "Planifiee", variant: "secondary" },
+  SCHEDULED: { label: "Planifiée", variant: "secondary" },
   ACTIVE: { label: "En cours", variant: "success" },
-  COMPLETED: { label: "Terminee", variant: "default" },
-  CANCELLED: { label: "Annulee", variant: "destructive" },
+  COMPLETED: { label: "Terminée", variant: "default" },
+  CANCELLED: { label: "Annulée", variant: "destructive" },
 };
 
 export default function ProfessorSessionsPage() {
@@ -39,11 +39,11 @@ export default function ProfessorSessionsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Mes seances</h1>
-          <p className="text-gray-500 mt-1">Gerez et suivez vos seances de cours</p>
+          <h1 className="text-2xl font-bold text-gray-900">Mes séances</h1>
+          <p className="text-gray-500 mt-1">Gérez et suivez vos séances de cours</p>
         </div>
         <Link href="/professor/sessions/new">
-          <Button><Plus className="h-4 w-4" /> Nouvelle seance</Button>
+          <Button><Plus className="h-4 w-4" /> Nouvelle séance</Button>
         </Link>
       </div>
 

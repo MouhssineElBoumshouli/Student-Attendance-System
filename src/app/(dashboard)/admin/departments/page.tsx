@@ -41,8 +41,8 @@ export default function DepartmentsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Departements</h1>
-          <p className="text-gray-500 mt-1">Gerez les departements de l&apos;universite</p>
+          <h1 className="text-2xl font-bold text-gray-900">Départements</h1>
+          <p className="text-gray-500 mt-1">Gérez les départements de l&apos;université</p>
         </div>
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="h-4 w-4" /> Ajouter
@@ -57,8 +57,8 @@ export default function DepartmentsPage() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-gray-500">
             <Building2 className="h-12 w-12 mb-4 text-gray-300" />
-            <p className="font-medium">Aucun departement</p>
-            <p className="text-sm">Commencez par ajouter un departement</p>
+            <p className="font-medium">Aucun département</p>
+            <p className="text-sm">Commencez par ajouter un département</p>
           </CardContent>
         </Card>
       ) : (
@@ -81,14 +81,14 @@ export default function DepartmentsPage() {
                     size="icon"
                     className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600 transition-all"
                     onClick={() => {
-                      if (confirm("Supprimer ce departement ?")) remove(dept.id);
+                      if (confirm("Supprimer ce département ?")) remove(dept.id);
                     }}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
                 <div className="mt-3 text-sm text-gray-500">
-                  {dept._count.programs} filiere{dept._count.programs !== 1 ? "s" : ""}
+                  {dept._count.programs} filière{dept._count.programs !== 1 ? "s" : ""}
                 </div>
               </CardContent>
             </Card>
@@ -99,13 +99,13 @@ export default function DepartmentsPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Nouveau departement</DialogTitle>
+            <DialogTitle>Nouveau département</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label>Nom du departement</Label>
+              <Label>Nom du département</Label>
               <Input
-                placeholder="Ex: Ecole d'Ingenierie Digitale et IA"
+                placeholder="Ex: École d'Ingénierie Digitale et IA"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
@@ -125,7 +125,7 @@ export default function DepartmentsPage() {
                 Annuler
               </Button>
               <Button type="submit" disabled={submitting}>
-                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Creer"}
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Créer"}
               </Button>
             </DialogFooter>
           </form>

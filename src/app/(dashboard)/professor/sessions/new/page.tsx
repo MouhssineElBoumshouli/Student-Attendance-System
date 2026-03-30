@@ -65,11 +65,11 @@ export default function NewSessionPage() {
 
       if (!res.ok) {
         const err = await res.json();
-        toast.error(err.error || "Erreur lors de la creation");
+        toast.error(err.error || "Erreur lors de la création");
         return;
       }
 
-      toast.success("Seance creee avec succes");
+      toast.success("Séance créée avec succès");
       router.push("/professor/sessions");
     } catch {
       toast.error("Erreur serveur");

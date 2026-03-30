@@ -11,10 +11,10 @@ export default function LoginPage() {
           <QrCode className="h-7 w-7 text-white" />
         </div>
         <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-          UEMF Presence
+          UEMF Présence
         </h1>
         <p className="text-sm text-gray-500">
-          Systeme de gestion des presences
+          Système de gestion des présences
         </p>
       </div>
 
@@ -33,7 +33,7 @@ export default function LoginPage() {
 
       {/* Footer */}
       <p className="text-center text-xs text-gray-400">
-        Universite Euro-Mediterraneenne de Fes
+        Université Euro-Méditerranéenne de Fès
       </p>
     </div>
   );

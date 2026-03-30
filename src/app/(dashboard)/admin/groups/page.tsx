@@ -49,7 +49,7 @@ export default function GroupsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Groupes</h1>
-          <p className="text-gray-500 mt-1">Gerez les groupes d&apos;etudiants</p>
+          <p className="text-gray-500 mt-1">Gérez les groupes d&apos;étudiants</p>
         </div>
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="h-4 w-4" /> Ajouter
