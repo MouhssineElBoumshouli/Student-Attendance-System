@@ -66,12 +66,26 @@ export default function ProfessorReportsPage() {
     : sessions;
 
   useEffect(() => {
-    if (!selectedSession) { setAttendances([]); return; }
-    setLoadingAttendance(true);
+    if (!selectedSession) return;
+    let cancelled = false;
     fetch(`/api/sessions/${selectedSession}/attendance`)
       .then((r) => r.json())
-      .then((data) => { setAttendances(data); setLoadingAttendance(false); });
+      .then((data) => {
+        if (cancelled) return;
+        setAttendances(data);
+        setLoadingAttendance(false);
+      });
+    return () => { cancelled = true; };
   }, [selectedSession]);
+
+  const selectSession = (id: string) => {
+    setSelectedSession(id);
+    if (id) {
+      setLoadingAttendance(true);
+    } else {
+      setAttendances([]);
+    }
+  };
 
   const exportCsv = () => {
     if (attendances.length === 0) { toast.error("Aucune donnée à exporter"); return; }
@@ -88,7 +102,12 @@ export default function ProfessorReportsPage() {
       a.verified ? "Oui" : "Non",
     ]);
 
-    const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
+    // RFC 4180: wrap every field in quotes and escape inner quotes by doubling.
+    const csvCell = (v: string | number | null | undefined) =>
+      `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const csv = [headers, ...rows]
+      .map((r) => r.map(csvCell).join(","))
+      .join("\r\n");
     const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -120,7 +139,7 @@ export default function ProfessorReportsPage() {
 
       {/* Filters */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Select value={selectedCourse} onValueChange={(v) => { setSelectedCourse(v); setSelectedSession(""); }}>
+        <Select value={selectedCourse} onValueChange={(v) => { setSelectedCourse(v); selectSession(""); }}>
           <SelectTrigger><SelectValue placeholder="Filtrer par cours" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous les cours</SelectItem>
@@ -129,7 +148,7 @@ export default function ProfessorReportsPage() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={selectedSession} onValueChange={setSelectedSession}>
+        <Select value={selectedSession} onValueChange={selectSession}>
           <SelectTrigger><SelectValue placeholder="Choisir une séance" /></SelectTrigger>
           <SelectContent>
             {filteredSessions.length === 0 ? (
