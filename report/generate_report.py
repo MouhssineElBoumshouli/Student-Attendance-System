@@ -1,1302 +1,1576 @@
 #!/usr/bin/env python3
 """
-UEMF Présence — Operational Research Project Report
-Generates a professional PDF report for the OR module.
-Updated: March 2026
+UEMF Présence — rapport de Recherche Opérationnelle.
+
+Génère un PDF A4 complet, conçu pour être lu de bout en bout par un
+lecteur qui découvre le projet (et qui n'est pas forcément développeur).
+Chaque concept technique est expliqué avant d'être utilisé.
+
+Génération :
+    python3 report/generate_report.py
+
+Sortie :
+    report/UEMF_Presence_Rapport_RO.pdf
 """
 
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import cm, mm
-from reportlab.lib.colors import HexColor, white, black
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT, TA_RIGHT
-from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle,
-    Image, HRFlowable, KeepTogether, ListFlowable, ListItem,
-)
-from reportlab.graphics.shapes import Drawing, Rect, String, Line, Circle
-from reportlab.graphics import renderPDF
 import os
 
-# ─── Colors ───────────────────────────────────────────────────
-UEMF_BLUE = HexColor("#1e40af")
-UEMF_DARK = HexColor("#111827")
-ACCENT = HexColor("#2563eb")
-LIGHT_BG = HexColor("#f0f4ff")
-LIGHT_GRAY = HexColor("#f3f4f6")
-MEDIUM_GRAY = HexColor("#6b7280")
-DARK_TEXT = HexColor("#1f2937")
-GREEN = HexColor("#059669")
-RED = HexColor("#dc2626")
-AMBER = HexColor("#d97706")
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import cm
+from reportlab.lib.colors import HexColor, white
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
+from reportlab.platypus import (
+    SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle,
+    HRFlowable, KeepTogether,
+)
 
-W, H = A4
+# --- Palette (cohérente avec la page HTML de présentation) ------------------
+INK = HexColor("#0d0d0d")
+PAPER = HexColor("#f5f0e8")
+ACCENT = HexColor("#c0392b")
+ACCENT2 = HexColor("#2c3e7a")
+GOLD = HexColor("#d4a017")
+GREEN = HexColor("#27ae60")
+MUTED = HexColor("#7a7065")
+CARD_BG = HexColor("#faf6ee")
+BORDER = HexColor("#d0c8b8")
+CODE_BG = HexColor("#1a1a2e")
+CODE_FG = HexColor("#7fd1b9")
+LIGHT_BLUE = HexColor("#eef3fa")
+LIGHT_GREEN = HexColor("#ecf7ec")
+LIGHT_GOLD = HexColor("#fff7e6")
+LIGHT_RED = HexColor("#fdecea")
 
-# ─── Styles ───────────────────────────────────────────────────
-styles = getSampleStyleSheet()
+# --- Styles -----------------------------------------------------------------
+ss = getSampleStyleSheet()
 
-styles.add(ParagraphStyle(
-    name='CoverTitle',
-    fontName='Helvetica-Bold',
-    fontSize=28,
-    leading=34,
-    textColor=UEMF_BLUE,
-    alignment=TA_CENTER,
-    spaceAfter=6,
-))
+ss.add(ParagraphStyle(name="CoverTitle", fontName="Helvetica-Bold",
+                      fontSize=32, leading=38, textColor=INK,
+                      alignment=TA_CENTER, spaceAfter=4))
+ss.add(ParagraphStyle(name="CoverSubtitle", fontName="Helvetica",
+                      fontSize=14, leading=20, textColor=MUTED,
+                      alignment=TA_CENTER, spaceAfter=4))
+ss.add(ParagraphStyle(name="CoverBadge", fontName="Helvetica-Bold",
+                      fontSize=9, leading=12, textColor=white,
+                      alignment=TA_CENTER, backColor=ACCENT,
+                      borderPadding=(4, 8, 4, 8)))
 
-styles.add(ParagraphStyle(
-    name='CoverSubtitle',
-    fontName='Helvetica',
-    fontSize=14,
-    leading=20,
-    textColor=MEDIUM_GRAY,
-    alignment=TA_CENTER,
-    spaceAfter=4,
-))
+ss.add(ParagraphStyle(name="H1", fontName="Helvetica-Bold",
+                      fontSize=20, leading=26, textColor=INK,
+                      spaceBefore=18, spaceAfter=10))
+ss.add(ParagraphStyle(name="H2", fontName="Helvetica-Bold",
+                      fontSize=14, leading=20, textColor=ACCENT2,
+                      spaceBefore=14, spaceAfter=6))
+ss.add(ParagraphStyle(name="H3", fontName="Helvetica-Bold",
+                      fontSize=11, leading=15, textColor=ACCENT,
+                      spaceBefore=10, spaceAfter=4))
 
-styles.add(ParagraphStyle(
-    name='SectionTitle',
-    fontName='Helvetica-Bold',
-    fontSize=18,
-    leading=24,
-    textColor=UEMF_BLUE,
-    spaceBefore=24,
-    spaceAfter=12,
-))
+ss.add(ParagraphStyle(name="uBody", fontName="Helvetica",
+                      fontSize=10, leading=15, textColor=INK,
+                      alignment=TA_JUSTIFY, spaceAfter=8))
+ss.add(ParagraphStyle(name="uBodyMuted", parent=ss["uBody"],
+                      textColor=MUTED))
+ss.add(ParagraphStyle(name="uBullet", fontName="Helvetica",
+                      fontSize=10, leading=15, textColor=INK,
+                      leftIndent=18, bulletIndent=6, spaceAfter=4))
 
-styles.add(ParagraphStyle(
-    name='SubSection',
-    fontName='Helvetica-Bold',
-    fontSize=13,
-    leading=18,
-    textColor=UEMF_DARK,
-    spaceBefore=16,
-    spaceAfter=8,
-))
+ss.add(ParagraphStyle(name="uCallout", fontName="Helvetica",
+                      fontSize=9.5, leading=14, textColor=INK,
+                      leftIndent=8, rightIndent=8,
+                      borderPadding=(8, 10, 8, 10), spaceBefore=4,
+                      spaceAfter=10))
+ss.add(ParagraphStyle(name="uCalloutLabel", fontName="Helvetica-Bold",
+                      fontSize=8, leading=10, textColor=ACCENT2,
+                      spaceAfter=4))
 
-styles.add(ParagraphStyle(
-    name='SubSubSection',
-    fontName='Helvetica-Bold',
-    fontSize=11,
-    leading=15,
-    textColor=ACCENT,
-    spaceBefore=12,
-    spaceAfter=6,
-))
+ss.add(ParagraphStyle(name="uCode", fontName="Courier",
+                      fontSize=8.5, leading=12.5, textColor=CODE_FG,
+                      backColor=CODE_BG, leftIndent=10, rightIndent=10,
+                      borderPadding=(8, 10, 8, 10), spaceBefore=6,
+                      spaceAfter=10))
+ss.add(ParagraphStyle(name="Formula", fontName="Courier-Bold",
+                      fontSize=10, leading=15, textColor=ACCENT2,
+                      alignment=TA_CENTER,
+                      backColor=LIGHT_BLUE,
+                      borderPadding=(8, 10, 8, 10),
+                      spaceBefore=6, spaceAfter=10))
 
-styles.add(ParagraphStyle(
-    name='BodyText2',
-    fontName='Helvetica',
-    fontSize=10,
-    leading=15,
-    textColor=DARK_TEXT,
-    alignment=TA_JUSTIFY,
-    spaceAfter=8,
-))
+ss.add(ParagraphStyle(name="Caption", fontName="Helvetica-Oblique",
+                      fontSize=8.5, leading=12, textColor=MUTED,
+                      alignment=TA_CENTER, spaceAfter=14))
 
-styles.add(ParagraphStyle(
-    name='BulletItem',
-    fontName='Helvetica',
-    fontSize=10,
-    leading=15,
-    textColor=DARK_TEXT,
-    leftIndent=20,
-    spaceAfter=4,
-    bulletIndent=8,
-    bulletFontSize=10,
-))
-
-styles.add(ParagraphStyle(
-    name='CodeBlock',
-    fontName='Courier',
-    fontSize=8.5,
-    leading=12,
-    textColor=DARK_TEXT,
-    backColor=LIGHT_GRAY,
-    leftIndent=12,
-    rightIndent=12,
-    spaceBefore=6,
-    spaceAfter=6,
-    borderPadding=(6, 6, 6, 6),
-))
-
-styles.add(ParagraphStyle(
-    name='Formula',
-    fontName='Courier-Bold',
-    fontSize=10,
-    leading=16,
-    textColor=UEMF_DARK,
-    alignment=TA_CENTER,
-    spaceBefore=10,
-    spaceAfter=10,
-    backColor=LIGHT_BG,
-    borderPadding=(10, 10, 10, 10),
-))
-
-styles.add(ParagraphStyle(
-    name='Caption',
-    fontName='Helvetica-Oblique',
-    fontSize=9,
-    leading=12,
-    textColor=MEDIUM_GRAY,
-    alignment=TA_CENTER,
-    spaceBefore=4,
-    spaceAfter=12,
-))
-
-styles.add(ParagraphStyle(
-    name='TableHeader',
-    fontName='Helvetica-Bold',
-    fontSize=9,
-    leading=12,
-    textColor=white,
-    alignment=TA_CENTER,
-))
-
-styles.add(ParagraphStyle(
-    name='TableCell',
-    fontName='Helvetica',
-    fontSize=9,
-    leading=12,
-    textColor=DARK_TEXT,
-    alignment=TA_LEFT,
-))
-
-styles.add(ParagraphStyle(
-    name='Footer',
-    fontName='Helvetica',
-    fontSize=8,
-    leading=10,
-    textColor=MEDIUM_GRAY,
-    alignment=TA_CENTER,
-))
+ss.add(ParagraphStyle(name="THeader", fontName="Helvetica-Bold",
+                      fontSize=9, leading=12, textColor=white,
+                      alignment=TA_LEFT))
+ss.add(ParagraphStyle(name="TCell", fontName="Helvetica",
+                      fontSize=9, leading=12, textColor=INK,
+                      alignment=TA_LEFT))
+ss.add(ParagraphStyle(name="TCellSmall", fontName="Helvetica",
+                      fontSize=8.5, leading=11, textColor=INK,
+                      alignment=TA_LEFT))
 
 
-def make_table(headers, rows, col_widths=None):
-    """Utility to create a styled table."""
-    header_row = [Paragraph(h, styles['TableHeader']) for h in headers]
-    data_rows = []
-    for row in rows:
-        data_rows.append([Paragraph(str(c), styles['TableCell']) for c in row])
+# --- Helpers ----------------------------------------------------------------
 
-    data = [header_row] + data_rows
+def hr():
+    return HRFlowable(width="100%", thickness=0.5, color=BORDER,
+                      spaceBefore=6, spaceAfter=10)
 
-    if col_widths is None:
-        col_widths = [None] * len(headers)
 
+def bullet(text, style="uBullet"):
+    return Paragraph(f"<bullet>&bull;</bullet> {text}", ss[style])
+
+
+def callout(label, body, bg=LIGHT_BLUE, accent=ACCENT2):
+    """Boxed callout — definition / why / example / warning."""
+    tbl = Table(
+        [[Paragraph(label, ParagraphStyle(
+            "cl", parent=ss["uCalloutLabel"], textColor=accent))],
+         [Paragraph(body, ss["uCallout"])]],
+        colWidths=[15.6 * cm],
+    )
+    tbl.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), bg),
+        ("LINEBEFORE", (0, 0), (0, -1), 3, accent),
+        ("LEFTPADDING", (0, 0), (-1, -1), 12),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+        ("TOPPADDING", (0, 0), (0, 0), 8),
+        ("BOTTOMPADDING", (0, 0), (0, 0), 0),
+        ("TOPPADDING", (0, 1), (0, 1), 4),
+        ("BOTTOMPADDING", (0, 1), (0, 1), 8),
+    ]))
+    return tbl
+
+
+def definition(label, body):
+    return callout(label, body, bg=LIGHT_BLUE, accent=ACCENT2)
+
+
+def why(label, body):
+    return callout(label, body, bg=LIGHT_GOLD, accent=HexColor("#a0760a"))
+
+
+def example(label, body):
+    return callout(label, body, bg=LIGHT_GREEN, accent=GREEN)
+
+
+def warn(label, body):
+    return callout(label, body, bg=LIGHT_RED, accent=ACCENT)
+
+
+def code_block(text):
+    """Monospace code block, dark background. Preserve whitespace."""
+    # Replace spaces with non-breaking spaces and newlines with <br/>
+    text_html = (text
+                 .replace("&", "&amp;")
+                 .replace("<", "&lt;")
+                 .replace(">", "&gt;")
+                 .replace(" ", "&nbsp;")
+                 .replace("\n", "<br/>"))
+    return Paragraph(text_html, ss["uCode"])
+
+
+def formula(text):
+    return Paragraph(text, ss["Formula"])
+
+
+def make_table(headers, rows, col_widths=None, header_color=INK):
+    header_row = [Paragraph(h, ss["THeader"]) for h in headers]
+    data = [header_row] + [[Paragraph(str(c), ss["TCell"]) for c in row]
+                           for row in rows]
     t = Table(data, colWidths=col_widths, repeatRows=1)
     t.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), UEMF_BLUE),
-        ('TEXTCOLOR', (0, 0), (-1, 0), white),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 9),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-        ('TOPPADDING', (0, 0), (-1, 0), 8),
-        ('BACKGROUND', (0, 1), (-1, -1), white),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [white, LIGHT_GRAY]),
-        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 1), (-1, -1), 9),
-        ('TOPPADDING', (0, 1), (-1, -1), 6),
-        ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
-        ('LEFTPADDING', (0, 0), (-1, -1), 8),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
-        ('GRID', (0, 0), (-1, -1), 0.5, HexColor("#d1d5db")),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ("BACKGROUND", (0, 0), (-1, 0), header_color),
+        ("TEXTCOLOR", (0, 0), (-1, 0), white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, 0), 9),
+        ("TOPPADDING", (0, 0), (-1, 0), 7),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 7),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [white, HexColor("#f5f0e8")]),
+        ("FONTSIZE", (0, 1), (-1, -1), 9),
+        ("TOPPADDING", (0, 1), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 1), (-1, -1), 6),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("GRID", (0, 0), (-1, -1), 0.4, BORDER),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
     ]))
     return t
 
 
-def hr():
-    return HRFlowable(width="100%", thickness=0.5, color=HexColor("#e5e7eb"),
-                       spaceBefore=8, spaceAfter=8)
+# --- Header / footer for page templates -------------------------------------
+
+def add_page_decorations(canvas, doc):
+    canvas.saveState()
+    # Footer
+    canvas.setFont("Helvetica", 8)
+    canvas.setFillColor(MUTED)
+    canvas.drawString(
+        2.2 * cm, 1.2 * cm,
+        "UEMF Présence — Rapport RO — Mouhssine El Boumshouli")
+    canvas.drawRightString(
+        A4[0] - 2.2 * cm, 1.2 * cm,
+        f"p. {doc.page}")
+    canvas.restoreState()
 
 
-def bullet(text):
-    return Paragraph(f"<bullet>&bull;</bullet> {text}", styles['BulletItem'])
-
+# --- Build report -----------------------------------------------------------
 
 def build_report():
-    output_path = os.path.join(os.path.dirname(__file__), "UEMF_Presence_Rapport_RO.pdf")
-
+    out = os.path.join(os.path.dirname(__file__),
+                       "UEMF_Presence_Rapport_RO.pdf")
     doc = SimpleDocTemplate(
-        output_path,
-        pagesize=A4,
-        leftMargin=2.2*cm,
-        rightMargin=2.2*cm,
-        topMargin=2*cm,
-        bottomMargin=2*cm,
-        title="UEMF Presence - Rapport Recherche Operationnelle",
+        out, pagesize=A4,
+        leftMargin=2.2 * cm, rightMargin=2.2 * cm,
+        topMargin=2 * cm, bottomMargin=2 * cm,
+        title="UEMF Présence — Rapport Recherche Opérationnelle",
         author="Mouhssine El Boumshouli",
     )
 
-    story = []
+    s = []  # the story (list of flowables)
 
-    # ═══════════════════════════════════════════════════════════
-    # COVER PAGE
-    # ═══════════════════════════════════════════════════════════
-    story.append(Spacer(1, 3*cm))
+    # ════════════════════════════════════════════════════════════════════════
+    # COVER
+    # ════════════════════════════════════════════════════════════════════════
+    s.append(Spacer(1, 4.5 * cm))
+    s.append(Paragraph("MODULE · RECHERCHE OPÉRATIONNELLE", ss["CoverBadge"]))
+    s.append(Spacer(1, 1.5 * cm))
+    s.append(Paragraph("UEMF Présence", ss["CoverTitle"]))
+    s.append(Spacer(1, 0.2 * cm))
+    s.append(Paragraph(
+        "Système de gestion des présences par QR&nbsp;code rotatif",
+        ParagraphStyle("sub1", parent=ss["CoverSubtitle"],
+                       fontSize=14, textColor=ACCENT2,
+                       fontName="Helvetica-Bold")))
+    s.append(Spacer(1, 0.5 * cm))
+    s.append(Paragraph(
+        "Modélisation d'un problème universitaire en optimisation "
+        "combinatoire, puis transformation en application web complète, "
+        "sécurisée, déployée en production.",
+        ParagraphStyle("sub2", parent=ss["CoverSubtitle"],
+                       fontSize=11, leading=15)))
 
-    # University name
-    story.append(Paragraph(
-        "Universit&eacute; Euro-M&eacute;diterran&eacute;enne de F&egrave;s",
-        ParagraphStyle('uni', parent=styles['CoverSubtitle'], fontSize=12, textColor=MEDIUM_GRAY)
-    ))
-    story.append(Spacer(1, 0.3*cm))
-    story.append(Paragraph(
-        "Module : Recherche Op&eacute;rationnelle",
-        ParagraphStyle('mod', parent=styles['CoverSubtitle'], fontSize=11, textColor=ACCENT)
-    ))
-    story.append(Spacer(1, 2*cm))
+    s.append(Spacer(1, 3 * cm))
 
-    # Title
-    story.append(Paragraph("UEMF Pr&eacute;sence", styles['CoverTitle']))
-    story.append(Spacer(1, 0.3*cm))
-    story.append(Paragraph(
-        "Syst&egrave;me de Gestion des Pr&eacute;sences par QR Code",
-        ParagraphStyle('sub', parent=styles['CoverSubtitle'], fontSize=16, textColor=UEMF_DARK)
-    ))
-    story.append(Spacer(1, 0.5*cm))
-    story.append(Paragraph(
-        "Optimisation du processus d'appel universitaire",
-        ParagraphStyle('sub2', parent=styles['CoverSubtitle'], fontSize=12)
-    ))
-
-    story.append(Spacer(1, 3*cm))
-
-    # Info box
-    info_data = [
-        ["R&eacute;alis&eacute; par", "Mouhssine El Boumshouli"],
-        ["Formation", "EIDIA - UEMF"],
-        ["Ann&eacute;e Universitaire", "2025-2026"],
-        ["Technologies", "Next.js 16 &middot; TypeScript &middot; Prisma 6 &middot; PostgreSQL (Neon)"],
-        ["D&eacute;ploiement", "Vercel (Frontend) + Neon (Base de donn&eacute;es)"],
-        ["D&eacute;p&ocirc;t GitHub", "github.com/MouhssineElBoumshouli/Student-Attendance-System"],
+    info_rows = [
+        ("Réalisé par", "Mouhssine El Boumshouli"),
+        ("Encadrant", "Pr Ahmed El Hilali Alaoui (Directeur académique EIDIA)"),
+        ("Formation", "EIDIA — UEMF, Semestre 5"),
+        ("Année universitaire", "2025–2026"),
+        ("Stack", "Next.js 16 · React 19 · TypeScript · "
+                  "Prisma 6 · PostgreSQL (Neon)"),
+        ("Déploiement", "Vercel — HTTPS automatique"),
+        ("Code source", "github.com/MouhssineElBoumshouli/Student-Attendance-System"),
     ]
-    info_table_data = [[Paragraph(r[0], ParagraphStyle('ik', parent=styles['TableCell'], fontName='Helvetica-Bold', textColor=UEMF_BLUE)),
-                         Paragraph(r[1], styles['TableCell'])] for r in info_data]
-
-    info_t = Table(info_table_data, colWidths=[5*cm, 10*cm])
-    info_t.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), LIGHT_BG),
-        ('TOPPADDING', (0, 0), (-1, -1), 8),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-        ('LEFTPADDING', (0, 0), (-1, -1), 12),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 12),
-        ('GRID', (0, 0), (-1, -1), 0.5, HexColor("#bfdbfe")),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    info_tbl = Table(
+        [[Paragraph(f"<b>{k}</b>", ss["TCell"]),
+          Paragraph(v, ss["TCell"])] for k, v in info_rows],
+        colWidths=[4.5 * cm, 11 * cm],
+    )
+    info_tbl.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), CARD_BG),
+        ("TOPPADDING", (0, 0), (-1, -1), 7),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+        ("LEFTPADDING", (0, 0), (-1, -1), 12),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+        ("GRID", (0, 0), (-1, -1), 0.3, BORDER),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
     ]))
-    story.append(info_t)
+    s.append(info_tbl)
+    s.append(PageBreak())
 
-    story.append(PageBreak())
+    # ════════════════════════════════════════════════════════════════════════
+    # TABLE DES MATIÈRES
+    # ════════════════════════════════════════════════════════════════════════
+    s.append(Paragraph("Table des matières", ss["H1"]))
+    s.append(hr())
 
-    # ═══════════════════════════════════════════════════════════
-    # TABLE OF CONTENTS
-    # ═══════════════════════════════════════════════════════════
-    story.append(Paragraph("Table des Mati&egrave;res", styles['SectionTitle']))
-    story.append(hr())
-
-    toc_items = [
-        ("1.", "Introduction et Contexte du Probl&egrave;me"),
-        ("2.", "Mod&eacute;lisation en Recherche Op&eacute;rationnelle"),
-        ("  2.1", "Variables de D&eacute;cision"),
-        ("  2.2", "Fonction Objectif"),
-        ("  2.3", "Contraintes"),
-        ("  2.4", "Analyse de Complexit&eacute;"),
-        ("3.", "Solution Technique : Architecture du Syst&egrave;me"),
-        ("  3.1", "Choix Technologiques et Justifications"),
-        ("  3.2", "Mod&egrave;le de Donn&eacute;es (13 Entit&eacute;s)"),
-        ("  3.3", "Algorithme de QR Code Rotatif (HMAC-SHA256)"),
-        ("  3.4", "G&eacute;olocalisation et Formule de Haversine"),
-        ("  3.5", "Polling Temps R&eacute;el"),
-        ("4.", "M&eacute;canismes Anti-Fraude"),
-        ("  4.1", "Rotation des Tokens"),
-        ("  4.2", "Validation GPS"),
-        ("  4.3", "Empreinte de l'Appareil"),
-        ("  4.4", "Comparaison Temporellement S&ucirc;re"),
-        ("5.", "Analyse de Performance et Scalabilit&eacute;"),
-        ("6.", "Interfaces Utilisateur (3 R&ocirc;les)"),
-        ("7.", "Guide de D&eacute;ploiement et D'utilisation"),
-        ("  7.1", "Pr&eacute;-requis"),
-        ("  7.2", "Installation Locale"),
-        ("  7.3", "D&eacute;ploiement Cloud (Vercel + Neon)"),
-        ("  7.4", "Comptes de Test"),
-        ("  7.5", "Guide d'Utilisation Complet"),
-        ("8.", "Guide de Maintenance et Modification"),
-        ("  8.1", "Structure du Projet"),
-        ("  8.2", "Ajouter / Modifier des Entit&eacute;s"),
-        ("  8.3", "Modifier les Param&egrave;tres du Syst&egrave;me"),
-        ("9.", "Conclusion et Am&eacute;liorations Futures"),
+    toc = [
+        ("§ 1", "Le problème à résoudre"),
+        ("§ 2", "Recherche Opérationnelle — rappels"),
+        ("§ 3", "Notre solution — vue d'ensemble"),
+        ("§ 4", "Formulation en Recherche Opérationnelle"),
+        ("§ 5", "Fonction objectif multi-critère"),
+        ("§ 6", "Les cinq contraintes du modèle"),
+        ("§ 7", "Le mécanisme QR rotatif"),
+        ("§ 8", "Quatre couches anti-fraude"),
+        ("§ 9", "Stack technique"),
+        ("§ 10", "Architecture et flux de données"),
+        ("§ 11", "Modèle de données"),
+        ("§ 12", "Sécurité API par rôle"),
+        ("§ 13", "Cycle de vie d'une séance"),
+        ("§ 14", "Bilan et limites assumées"),
+        ("§ 15", "Glossaire technique"),
     ]
+    toc_tbl = Table(
+        [[Paragraph(f"<b>{n}</b>", ss["uBody"]),
+          Paragraph(t, ss["uBody"])] for n, t in toc],
+        colWidths=[2 * cm, 13.5 * cm],
+    )
+    toc_tbl.setStyle(TableStyle([
+        ("LINEBELOW", (0, 0), (-1, -1), 0.3, BORDER),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+    ]))
+    s.append(toc_tbl)
+    s.append(PageBreak())
 
-    for num, title in toc_items:
-        indent = 20 if num.startswith("  ") else 0
-        weight = 'Helvetica-Bold' if not num.startswith("  ") else 'Helvetica'
-        story.append(Paragraph(
-            f"<b>{num.strip()}</b>&nbsp;&nbsp;{title}",
-            ParagraphStyle('toc_item', parent=styles['BodyText2'],
-                          leftIndent=indent, fontName=weight, spaceAfter=5)
-        ))
+    # ════════════════════════════════════════════════════════════════════════
+    # § 1 — LE PROBLÈME
+    # ════════════════════════════════════════════════════════════════════════
+    s.append(Paragraph("§ 1 — Le problème à résoudre", ss["H1"]))
+    s.append(hr())
 
-    story.append(PageBreak())
+    s.append(Paragraph(
+        "À l'Université Euro-Méditerranéenne de Fès, la présence en cours est "
+        "saisie manuellement via la plateforme Konosys&nbsp;: le professeur "
+        "appelle chaque étudiant par son nom, attend la réponse, puis coche la "
+        "liste. Pour une promotion de 30 à 60 étudiants, cela coûte 5 à 15 "
+        "minutes de temps de cours, à <b>chaque séance</b>. Et au-delà du temps "
+        "perdu, le procédé est fragile&nbsp;: erreurs, oublis, et surtout "
+        "<i>aucun</i> mécanisme contre la fraude — un voisin peut répondre "
+        "« présent » pour un absent sans que personne ne le remarque.",
+        ss["uBody"]))
 
-    # ═══════════════════════════════════════════════════════════
-    # 1. INTRODUCTION
-    # ═══════════════════════════════════════════════════════════
-    story.append(Paragraph("1. Introduction et Contexte du Probl&egrave;me", styles['SectionTitle']))
-    story.append(hr())
+    s.append(definition(
+        "DÉFINITION — PROBLÈME D'OPTIMISATION",
+        "En Recherche Opérationnelle, un <b>problème d'optimisation</b> "
+        "consiste à trouver, parmi toutes les solutions possibles, celle qui "
+        "maximise (ou minimise) une <i>quantité d'intérêt</i> appelée "
+        "<b>fonction objectif</b>, sous un ensemble de <b>contraintes</b> à "
+        "respecter. Ici, la quantité à maximiser est la fiabilité du système "
+        "de présence&nbsp;; les contraintes sont l'identité de l'étudiant, "
+        "sa présence physique en salle, et l'intégrité du token QR."))
 
-    story.append(Paragraph("1.1 Contexte", styles['SubSection']))
-    story.append(Paragraph(
-        "L'Universit&eacute; Euro-M&eacute;diterran&eacute;enne de F&egrave;s (UEMF) utilise actuellement "
-        "la plateforme Konosys pour la gestion acad&eacute;mique. Le processus de prise de pr&eacute;sence "
-        "se fait manuellement : le professeur appelle chaque &eacute;tudiant par son nom depuis la liste "
-        "Konosys, attend une r&eacute;ponse, puis coche le statut. Ce processus pr&eacute;sente plusieurs "
-        "probl&egrave;mes critiques.",
-        styles['BodyText2']
-    ))
+    s.append(Paragraph("1.1&nbsp;&nbsp;Les quatre pathologies du système actuel", ss["H2"]))
+    pathologies_tbl = make_table(
+        ["Pathologie", "Description", "Impact"],
+        [
+            ["Temps perdu",
+             "Appel un par un pour 30 à 60 étudiants au début du cours.",
+             "5 à 15 min / séance"],
+            ["Erreurs humaines",
+             "Homonymes, oublis, prénoms mal entendus, coches décalées.",
+             "2 à 5 %"],
+            ["Fraude triviale",
+             "Un étudiant répond « présent » pour un absent.",
+             "0 contrôle"],
+            ["Données figées",
+             "Aucune agrégation, aucune analyse statistique exploitable.",
+             "Manuel uniquement"],
+        ],
+        col_widths=[3.5 * cm, 8.5 * cm, 3.5 * cm],
+    )
+    s.append(pathologies_tbl)
+    s.append(Paragraph("Tableau 1 — Pathologies de la prise de présence manuelle",
+                       ss["Caption"]))
 
-    story.append(Paragraph("1.2 Probl&egrave;mes Identifi&eacute;s", styles['SubSection']))
+    s.append(Paragraph(
+        "Ces quatre pathologies ne sont pas indépendantes&nbsp;: elles se "
+        "nourrissent les unes les autres. Le temps perdu pousse le professeur "
+        "à expédier l'appel, ce qui augmente les erreurs et la fraude, et "
+        "l'absence de données empêche de mesurer le problème pour le corriger. "
+        "C'est le profil classique d'un <b>problème de processus mal posé</b> "
+        "— donc une cible naturelle pour une approche RO.",
+        ss["uBody"]))
 
-    problems = [
-        ("<b>Temps perdu</b> : L'appel prend 5 &agrave; 15 minutes par s&eacute;ance pour une classe de 30-60 &eacute;tudiants, "
-         "soit environ 10% du temps de cours effectif."),
-        ("<b>Erreurs humaines</b> : Erreurs de prononciation, homonymes, oublis de marquage. "
-         "Le taux d'erreur estim&eacute; est de 2-5% par s&eacute;ance."),
-        ("<b>Fraude facile</b> : Un &eacute;tudiant r&eacute;pond &laquo; pr&eacute;sent &raquo; pour un coll&egrave;gue absent. "
-         "Aucun m&eacute;canisme de v&eacute;rification d'identit&eacute;."),
-        ("<b>Pas de donn&eacute;es exploitables</b> : Les donn&eacute;es de pr&eacute;sence manuscrites ne sont pas "
-         "facilement agr&eacute;geables pour l'analyse statistique."),
-        ("<b>Scalabilit&eacute;</b> : Le processus ne s'adapte pas &agrave; la croissance de l'universit&eacute;."),
+    s.append(Paragraph("1.2&nbsp;&nbsp;Comparatif ancien processus vs. notre système", ss["H2"]))
+    comp_tbl = make_table(
+        ["Critère", "Konosys (actuel)", "UEMF Présence (QR)"],
+        [
+            ["Temps de prise", "5–15 min / séance", "15–30 secondes"],
+            ["Méthode", "Appel vocal manuel", "Scan QR rotatif (smartphone)"],
+            ["Anti-fraude", "Aucun", "4 couches indépendantes"],
+            ["Mise à jour côté prof", "Différée (fin de cours)",
+             "~5 sec après le scan"],
+            ["Export rapports", "Manuel", "CSV à un clic (RFC 4180)"],
+            ["Taux d'erreur de saisie", "2–5 %", "~0 % (automatisé)"],
+            ["Coût annuel", "Licence Konosys", "0 € (Vercel + Neon gratuits)"],
+        ],
+        col_widths=[4.5 * cm, 5.5 * cm, 5.5 * cm],
+    )
+    s.append(comp_tbl)
+    s.append(Paragraph("Tableau 2 — Comparatif des deux processus",
+                       ss["Caption"]))
+
+    s.append(PageBreak())
+
+    # ════════════════════════════════════════════════════════════════════════
+    # § 2 — RAPPELS RO
+    # ════════════════════════════════════════════════════════════════════════
+    s.append(Paragraph("§ 2 — Recherche Opérationnelle : rappels", ss["H1"]))
+    s.append(hr())
+
+    s.append(Paragraph(
+        "Avant d'attaquer notre modèle, un mot sur la discipline elle-même. "
+        "La Recherche Opérationnelle (RO) est l'application des méthodes "
+        "scientifiques — mathématiques, statistiques, modélisation — à la "
+        "<i>prise de décision</i> dans des organisations complexes. Née "
+        "pendant la Seconde Guerre mondiale (logistique militaire), elle "
+        "équipe aujourd'hui les compagnies aériennes (planification "
+        "d'équipages), les hôpitaux (affectation de blocs opératoires), les "
+        "transporteurs (tournées de livraison), etc.",
+        ss["uBody"]))
+
+    s.append(Paragraph("2.1&nbsp;&nbsp;Les trois ingrédients d'un modèle RO", ss["H2"]))
+    s.append(bullet(
+        "<b>Variables de décision</b> — les inconnues que l'on cherche à "
+        "fixer. Ce sont les leviers sur lesquels on agit."))
+    s.append(bullet(
+        "<b>Fonction objectif</b> — la quantité scalaire qui mesure la "
+        "qualité d'une solution. On cherche à la maximiser ou à la minimiser."))
+    s.append(bullet(
+        "<b>Contraintes</b> — les conditions que toute solution acceptable "
+        "doit satisfaire."))
+
+    s.append(definition(
+        "DÉFINITION — OPTIMISATION COMBINATOIRE",
+        "Famille de problèmes RO où les variables de décision prennent "
+        "leurs valeurs dans un ensemble <i>fini et discret</i> (souvent "
+        "{0, 1}). Exemples classiques&nbsp;: le voyageur de commerce, "
+        "l'affectation, le sac à dos. Par opposition à l'<i>optimisation "
+        "continue</i> (programmation linéaire, non linéaire), où les "
+        "variables prennent des valeurs réelles."))
+
+    s.append(Paragraph("2.2&nbsp;&nbsp;Pourquoi notre problème est combinatoire", ss["H2"]))
+    s.append(Paragraph(
+        "Pour chaque couple (étudiant, séance), une seule question binaire&nbsp;: "
+        "<i>cet étudiant était-il présent à cette séance&nbsp;?</i> La réponse "
+        "est dans {0, 1}. Avec 201 étudiants et, disons, 100 séances par "
+        "semestre, cela fait <b>20 100 variables binaires</b> à fixer — "
+        "chacune contrainte par les règles d'identité (la personne qui scanne "
+        "est bien l'étudiant) et de présence physique (il était bien en salle).",
+        ss["uBody"]))
+
+    s.append(why(
+        "POURQUOI MULTI-OBJECTIF ?",
+        "Réduire le temps d'appel est <i>un</i> objectif&nbsp;; vérifier "
+        "que chaque scan est authentique en est <i>un autre</i>&nbsp;; et "
+        "garder un taux de couverture élevé (peu d'étudiants oubliés) en "
+        "est <i>un troisième</i>. Ces trois objectifs sont en partie en "
+        "concurrence&nbsp;: ajouter des vérifications (GPS, fingerprint) "
+        "ralentit le scan&nbsp;; supprimer les vérifications accélère mais "
+        "ouvre la porte à la fraude. La RO multi-critère est l'outil "
+        "approprié pour <i>pondérer</i> ces compromis."))
+
+    s.append(Paragraph("2.3&nbsp;&nbsp;La méthode de scalarisation pondérée", ss["H2"]))
+    s.append(Paragraph(
+        "Quand on a plusieurs objectifs Z₁, Z₂, Z₃, on les combine en un "
+        "objectif unique Z par une <b>somme pondérée convexe</b>&nbsp;:",
+        ss["uBody"]))
+    s.append(formula(
+        "Z = α · Z₁ + β · Z₂ + γ · Z₃ ,&nbsp;&nbsp; "
+        "avec α + β + γ = 1 ,&nbsp;&nbsp; α, β, γ ≥ 0"))
+    s.append(Paragraph(
+        "Les coefficients α, β, γ représentent l'<i>importance relative</i> "
+        "que le décideur accorde à chaque objectif. Faire varier ces poids "
+        "et observer comment la solution optimale change, c'est le cœur de "
+        "l'<b>analyse de sensibilité</b> — un classique en RO.",
+        ss["uBody"]))
+
+    s.append(PageBreak())
+
+    # ════════════════════════════════════════════════════════════════════════
+    # § 3 — SOLUTION
+    # ════════════════════════════════════════════════════════════════════════
+    s.append(Paragraph("§ 3 — Notre solution en bref", ss["H1"]))
+    s.append(hr())
+
+    s.append(Paragraph(
+        "Une application web déployée sur Vercel, accessible depuis n'importe "
+        "quel navigateur — ordinateur du professeur pour afficher le QR en "
+        "classe, smartphone de l'étudiant pour scanner. Trois rôles "
+        "distincts, chacun avec son tableau de bord et ses permissions, "
+        "vérifiées <i>côté serveur</i> à chaque requête.",
+        ss["uBody"]))
+
+    s.append(Paragraph("3.1&nbsp;&nbsp;Les trois rôles", ss["H2"]))
+    roles_tbl = make_table(
+        ["Rôle", "Capacités"],
+        [
+            ["Administrateur",
+             "Gestion complète&nbsp;: départements, filières, groupes, "
+             "salles (avec coordonnées GPS), professeurs, étudiants, cours, "
+             "analytiques globales."],
+            ["Professeur",
+             "Voir ses cours, planifier des séances, activer une séance "
+             "(génère le QR rotatif), suivre les scans en temps quasi-réel, "
+             "corriger manuellement, exporter le rapport CSV."],
+            ["Étudiant",
+             "Scanner le QR affiché en classe via la caméra, consulter son "
+             "historique et son taux de présence par cours."],
+        ],
+        col_widths=[3.5 * cm, 12 * cm],
+    )
+    s.append(roles_tbl)
+    s.append(Paragraph("Tableau 3 — Capacités par rôle", ss["Caption"]))
+
+    s.append(Paragraph("3.2&nbsp;&nbsp;Le flux principal en sept étapes", ss["H2"]))
+    flow_steps = [
+        "Le <b>professeur</b> ouvre son tableau de bord et clique « Activer » "
+        "sur la séance prévue.",
+        "Le <b>serveur</b> tire un secret cryptographique aléatoire de 32 "
+        "octets, le stocke en base, et pré-crée une ligne <i>ABSENT</i> pour "
+        "chaque étudiant des groupes du cours.",
+        "Le <b>professeur</b> affiche la page QR plein écran. Le QR change "
+        "toutes les 10 secondes, calculé à partir du secret.",
+        "Chaque <b>étudiant</b> ouvre la page « Scanner » sur son téléphone, "
+        "autorise la caméra et le GPS.",
+        "Le téléphone <b>décode le QR</b> et envoie au serveur le token, la "
+        "position GPS, et une empreinte de l'appareil.",
+        "Le <b>serveur</b> vérifie l'authentification, la validité du token "
+        "(HMAC), la distance à la salle (Haversine), l'unicité de l'appareil, "
+        "puis bascule la ligne <i>ABSENT</i> en <i>PRESENT</i> (ou <i>LATE</i> "
+        "si &gt; 15 min).",
+        "Le <b>tableau de bord du professeur</b> se met à jour automatiquement "
+        "(~5 sec) et affiche le nouveau présent.",
     ]
-    for p in problems:
-        story.append(bullet(p))
+    for i, step in enumerate(flow_steps, 1):
+        s.append(Paragraph(f"<b>{i}.</b>&nbsp;&nbsp;{step}", ss["uBody"]))
 
-    story.append(Paragraph("1.3 Objectif du Projet", styles['SubSection']))
-    story.append(Paragraph(
-        "Concevoir et impl&eacute;menter un syst&egrave;me de gestion des pr&eacute;sences bas&eacute; sur les QR codes "
-        "qui <b>minimise le temps d'appel</b>, <b>maximise la fiabilit&eacute; des donn&eacute;es</b>, et "
-        "<b>&eacute;limine la fraude</b>, tout en fournissant des <b>outils d'analyse</b> aux professeurs "
-        "et administrateurs. Le syst&egrave;me doit &ecirc;tre pr&ecirc;t pour la production, d&eacute;ploy&eacute; dans le cloud, "
-        "et accessible depuis n'importe quel appareil connect&eacute; &agrave; Internet.",
-        styles['BodyText2']
+    s.append(example(
+        "EN PRATIQUE — LA PROMOTION 2025–2026",
+        "<b>201 étudiants</b> EIDIA répartis en 8 groupes (4 en Génie "
+        "Informatique, 4 en IA et Science des Données), <b>4 professeurs</b> "
+        "dont le Pr Ahmed El Hilali Alaoui en Recherche Opérationnelle, "
+        "<b>4 cours</b> et <b>4 salles</b> géolocalisées sur le campus UEMF "
+        "de Fès. Toutes ces données sont chargées dans la base de production "
+        "via un script de seed reproductible (<font face='Courier' "
+        "size='8'>prisma/seed.ts</font>)."))
+
+    s.append(PageBreak())
+
+    # ════════════════════════════════════════════════════════════════════════
+    # § 4 — MODÉLISATION
+    # ════════════════════════════════════════════════════════════════════════
+    s.append(Paragraph("§ 4 — Formulation en Recherche Opérationnelle", ss["H1"]))
+    s.append(hr())
+
+    s.append(Paragraph(
+        "On modélise le problème comme une <b>optimisation combinatoire à "
+        "variables binaires sous contraintes</b>. La formulation suit la "
+        "structure standard RO en trois étapes&nbsp;: (1) définir les "
+        "ensembles, (2) définir les variables de décision, (3) définir "
+        "l'objectif et les contraintes (§5 et §6).",
+        ss["uBody"]))
+
+    s.append(Paragraph("4.1&nbsp;&nbsp;Les ensembles", ss["H2"]))
+    s.append(Paragraph(
+        "Un <i>ensemble</i>, en RO, est simplement une liste finie "
+        "d'éléments sur lesquels on va indicer nos variables.",
+        ss["uBody"]))
+
+    s.append(code_block(
+        "-- Ensembles fondamentaux --\n"
+        "S = { s₁, s₂, …, sₙ }     // séances planifiées (cours)\n"
+        "E = { e₁, e₂, …, eₘ }     // étudiants inscrits\n"
+        "T = { t₀, t₁, …, tₖ }     // fenêtres de rotation du QR (Δ = 10 s)\n"
+        "R = { r₁, r₂, …, rₚ }     // salles, avec (lat, lon, rayon)\n"
+        "G = { g₁, g₂, …, g₈ }     // groupes (par filière, semestre)\n\n"
+        "-- Application à notre cas concret --\n"
+        "|E| = 201      // étudiants EIDIA S5\n"
+        "|G| = 8        // 4 GI + 4 IASD\n"
+        "|R| = 4        // Amphi A, Amphi B, Salle 204, Labo Info 1\n"
+        "Δ  = 10 s     // fenêtre de validité d'un QR"
     ))
 
-    # Comparison table
-    story.append(Paragraph("1.4 Comparaison : Ancien vs. Nouveau Syst&egrave;me", styles['SubSection']))
+    s.append(Paragraph("4.2&nbsp;&nbsp;Les variables de décision", ss["H2"]))
+    s.append(Paragraph(
+        "Une <b>variable de décision</b> représente une grandeur que le "
+        "système va calculer. Dans notre modèle, elles sont presque toutes "
+        "<i>binaires</i> ({0, 1}) — c'est ce qui rend le problème "
+        "combinatoire.",
+        ss["uBody"]))
 
-    comp_table = make_table(
-        ["Crit&egrave;re", "Syst&egrave;me Actuel (Konosys)", "UEMF Pr&eacute;sence (QR)"],
+    var_tbl = make_table(
+        ["Variable", "Domaine", "Signification"],
         [
-            ["Temps d'appel", "5-15 min / s&eacute;ance", "15-30 secondes"],
-            ["M&eacute;thode", "Appel vocal un par un", "Scan QR sur smartphone"],
-            ["Anti-fraude", "Aucun m&eacute;canisme", "4 couches de protection"],
-            ["Donn&eacute;es temps r&eacute;el", "Non", "Oui (polling toutes les 2s)"],
-            ["Export/Rapports", "Manuel", "CSV automatique en 1 clic"],
-            ["Taux d'erreur", "2-5%", "~0% (automatis&eacute;)"],
-            ["Accessibilit&eacute;", "En salle uniquement", "Depuis n'importe o&ugrave; (cloud)"],
-            ["Co&ucirc;t additionnel", "Aucun", "Aucun (h&eacute;bergement gratuit)"],
+            ["x<sub>ij</sub>", "{0, 1}",
+             "= 1 si l'étudiant e<sub>i</sub> est marqué présent à la séance s<sub>j</sub>"],
+            ["ℓ<sub>ij</sub>", "{0, 1}",
+             "= 1 si e<sub>i</sub> est arrivé en retard à s<sub>j</sub> (Δt &gt; 15 min)"],
+            ["v<sub>ij</sub>", "{0, 1}",
+             "= 1 si la présence est vérifiée (GPS dans le rayon ET appareil unique)"],
+            ["q<sub>jk</sub>", "hex (8)",
+             "token HMAC affiché par s<sub>j</sub> pendant la fenêtre t<sub>k</sub>"],
+            ["d<sub>ij</sub>", "R<super>+</super>",
+             "distance GPS (m) entre e<sub>i</sub> et la salle de s<sub>j</sub> — Haversine"],
+            ["Δt<sub>ij</sub>", "R<super>+</super>",
+             "délai d'arrivée de e<sub>i</sub> après le début de s<sub>j</sub> (min)"],
+            ["f<sub>ij</sub>", "SHA-256",
+             "empreinte de l'appareil utilisé par e<sub>i</sub> pour scanner s<sub>j</sub>"],
         ],
-        col_widths=[4*cm, 5.5*cm, 5.5*cm]
+        col_widths=[2 * cm, 2.5 * cm, 11 * cm],
     )
-    story.append(comp_table)
-    story.append(Paragraph("Tableau 1 : Comparaison des syst&egrave;mes", styles['Caption']))
+    s.append(var_tbl)
+    s.append(Paragraph("Tableau 4 — Variables de décision du modèle",
+                       ss["Caption"]))
 
-    story.append(PageBreak())
+    s.append(why(
+        "POURQUOI DES VARIABLES BINAIRES PLUTÔT QUE CONTINUES ?",
+        "Un étudiant est <i>soit</i> présent <i>soit</i> absent — il "
+        "n'existe pas de présence « à 73 % ». De même, un token est "
+        "valide ou ne l'est pas, un appareil est dans le rayon ou ne l'est "
+        "pas. La nature discrète de la décision se reflète dans la nature "
+        "binaire des variables. La conséquence est que le problème est "
+        "combinatoire et non continu."))
 
-    # ═══════════════════════════════════════════════════════════
-    # 2. MODELISATION OR
-    # ═══════════════════════════════════════════════════════════
-    story.append(Paragraph("2. Mod&eacute;lisation en Recherche Op&eacute;rationnelle", styles['SectionTitle']))
-    story.append(hr())
+    s.append(PageBreak())
 
-    story.append(Paragraph(
-        "Ce projet peut &ecirc;tre formul&eacute; comme un probl&egrave;me d'optimisation combinatoire. "
-        "Nous allons d&eacute;finir les variables de d&eacute;cision, la fonction objectif, et les contraintes "
-        "du syst&egrave;me selon la m&eacute;thodologie de la Recherche Op&eacute;rationnelle.",
-        styles['BodyText2']
+    # ════════════════════════════════════════════════════════════════════════
+    # § 5 — FONCTION OBJECTIF
+    # ════════════════════════════════════════════════════════════════════════
+    s.append(Paragraph("§ 5 — Fonction objectif multi-critère", ss["H1"]))
+    s.append(hr())
+
+    s.append(Paragraph(
+        "Notre système poursuit trois objectifs simultanés. On les combine via "
+        "une somme pondérée convexe pour obtenir un critère unique Z à "
+        "maximiser. C'est la <b>méthode de scalarisation</b>, l'approche la "
+        "plus classique pour transformer un problème multi-objectif en "
+        "problème mono-objectif équivalent.",
+        ss["uBody"]))
+
+    s.append(Paragraph("5.1&nbsp;&nbsp;Les trois sous-objectifs", ss["H2"]))
+    s.append(bullet(
+        "<b>Z₁ — Couverture automatique.</b> La part d'étudiants dont la "
+        "présence est saisie sans aucune intervention du professeur."))
+    s.append(bullet(
+        "<b>Z₂ — Vérification.</b> La part des présences automatiques qui "
+        "passent <i>toutes</i> les vérifications (GPS dans le rayon + "
+        "appareil unique)."))
+    s.append(bullet(
+        "<b>Z₃ — Efficacité temporelle.</b> Le gain de temps par rapport à "
+        "l'appel manuel."))
+
+    s.append(Paragraph("5.2&nbsp;&nbsp;Forme analytique de Z", ss["H2"]))
+    s.append(formula(
+        "Maximiser&nbsp; Z = α · Z₁ + β · Z₂ + γ · Z₃ ,&nbsp;&nbsp; "
+        "α + β + γ = 1 ,&nbsp;&nbsp; (α=0,4, β=0,3, γ=0,3 par défaut)"))
+
+    s.append(code_block(
+        "-- Z₁ : taux de couverture automatique --\n"
+        "Z₁ = (1 / |S|) · Σⱼ [ (Σᵢ xᵢⱼ) / |Eⱼ| ]\n"
+        "     pour chaque séance, on calcule la fraction d'étudiants présents,\n"
+        "     puis on moyenne sur l'ensemble des séances\n\n"
+        "-- Z₂ : taux de présences vérifiées (GPS + appareil unique) --\n"
+        "Z₂ = (Σᵢ,ⱼ vᵢⱼ) / max(1, Σᵢ,ⱼ xᵢⱼ)\n"
+        "     part des scans présents qui ont passé toutes les vérifications\n\n"
+        "-- Z₃ : efficacité temporelle --\n"
+        "Z₃ = 1 − (T_QR / T_manuel)\n"
+        "     avec T_QR ≈ 25 s et T_manuel ≈ 600 s → Z₃ ≈ 0,958"
     ))
 
-    # 2.1 Variables
-    story.append(Paragraph("2.1 Variables de D&eacute;cision", styles['SubSection']))
+    s.append(example(
+        "EXEMPLE CHIFFRÉ SUR UNE SÉANCE TYPE",
+        "Sur un cours de 50 étudiants, supposons que 48 scannent avec "
+        "succès et qu'aucun ne soit retardataire&nbsp;: "
+        "<b>Z₁ = 48/50 = 0,96</b>. Si 45 de ces 48 ont aussi un GPS "
+        "valide et un appareil unique&nbsp;: <b>Z₂ = 45/48 ≈ 0,938</b>. "
+        "Le temps total a été d'environ 25 s contre 8 min en appel "
+        "manuel&nbsp;: <b>Z₃ = 1 − 25/480 ≈ 0,948</b>. Avec α=0,4, β=0,3, "
+        "γ=0,3&nbsp;: <b>Z ≈ 0,950</b>. Soit une fiabilité globale "
+        "estimée de 95,0 %."))
 
-    story.append(Paragraph(
-        "Soit les ensembles fondamentaux suivants :",
-        styles['BodyText2']
-    ))
-
-    story.append(Paragraph(
-        "S = {s<sub>1</sub>, s<sub>2</sub>, ..., s<sub>n</sub>} : ensemble des s&eacute;ances<br/>"
-        "E = {e<sub>1</sub>, e<sub>2</sub>, ..., e<sub>m</sub>} : ensemble des &eacute;tudiants<br/>"
-        "T = {t<sub>0</sub>, t<sub>1</sub>, ..., t<sub>k</sub>} : ensemble des intervalles de temps (fen&ecirc;tres QR)",
-        styles['Formula']
-    ))
-
-    story.append(Paragraph(
-        "Les variables de d&eacute;cision sont :",
-        styles['BodyText2']
-    ))
-
-    var_table = make_table(
-        ["Variable", "Domaine", "Description"],
+    s.append(Paragraph("5.3&nbsp;&nbsp;Analyse de sensibilité aux poids", ss["H2"]))
+    sens_tbl = make_table(
+        ["α", "β", "γ", "Priorité", "Z estimé"],
         [
-            ["x<sub>ij</sub>", "{0, 1}", "= 1 si l'&eacute;tudiant e<sub>i</sub> est pr&eacute;sent &agrave; la s&eacute;ance s<sub>j</sub>"],
-            ["r<sub>ij</sub>", "{0, 1}", "= 1 si l'&eacute;tudiant e<sub>i</sub> est en retard &agrave; s<sub>j</sub>"],
-            ["v<sub>ij</sub>", "{0, 1}", "= 1 si la pr&eacute;sence de e<sub>i</sub> &agrave; s<sub>j</sub> est g&eacute;o-v&eacute;rifi&eacute;e"],
-            ["q<sub>jk</sub>", "String(8)", "Token HMAC g&eacute;n&eacute;r&eacute; pour s<sub>j</sub> &agrave; l'intervalle t<sub>k</sub>"],
-            ["d<sub>ij</sub>", "R<super>+</super>", "Distance GPS de e<sub>i</sub> &agrave; la salle de s<sub>j</sub> (m&egrave;tres)"],
-            ["&Delta;t<sub>ij</sub>", "R<super>+</super>", "D&eacute;lai d'arriv&eacute;e de e<sub>i</sub> apr&egrave;s le d&eacute;but de s<sub>j</sub> (minutes)"],
-            ["f<sub>ij</sub>", "String", "Empreinte (hash SHA-256) de l'appareil de e<sub>i</sub> pour s<sub>j</sub>"],
+            ["0,40", "0,30", "0,30", "Équilibrée (défaut)", "0,937"],
+            ["0,60", "0,20", "0,20", "Privilégie la couverture", "0,943"],
+            ["0,20", "0,60", "0,20", "Privilégie la vérification", "0,931"],
+            ["0,20", "0,20", "0,60", "Privilégie la rapidité", "0,945"],
         ],
-        col_widths=[2.5*cm, 2.5*cm, 10*cm]
+        col_widths=[1.6 * cm, 1.6 * cm, 1.6 * cm, 7 * cm, 3.6 * cm],
     )
-    story.append(var_table)
-    story.append(Paragraph("Tableau 2 : Variables de d&eacute;cision du mod&egrave;le", styles['Caption']))
+    s.append(sens_tbl)
+    s.append(Paragraph(
+        "Tableau 5 — Sensibilité de Z aux poids (Z₁=0,95 ; Z₂=0,90 ; Z₃=0,958)",
+        ss["Caption"]))
+    s.append(Paragraph(
+        "Les valeurs Z₁, Z₂, Z₃ utilisées ci-dessus sont des "
+        "<i>estimations cibles</i>. Elles seront recalibrées à partir des "
+        "données réelles après une période d'usage en production.",
+        ss["uBodyMuted"]))
 
-    # 2.2 Objective Function
-    story.append(Paragraph("2.2 Fonction Objectif", styles['SubSection']))
+    s.append(PageBreak())
 
-    story.append(Paragraph(
-        "La fonction objectif est <b>multi-crit&egrave;re</b>. Nous cherchons &agrave; <b>maximiser</b> "
-        "la fiabilit&eacute; globale du syst&egrave;me, d&eacute;finie comme la combinaison pond&eacute;r&eacute;e de "
-        "trois objectifs :",
-        styles['BodyText2']
+    # ════════════════════════════════════════════════════════════════════════
+    # § 6 — CONTRAINTES
+    # ════════════════════════════════════════════════════════════════════════
+    s.append(Paragraph("§ 6 — Les cinq contraintes du modèle", ss["H1"]))
+    s.append(hr())
+
+    s.append(Paragraph(
+        "Chaque contrainte mathématique du modèle est traduite en mécanisme "
+        "<i>vérifiable</i> côté serveur — c'est le pont direct entre la "
+        "formalisation RO et le code. Si une contrainte n'est pas respectée, "
+        "le scan est refusé ou marqué non-vérifié.",
+        ss["uBody"]))
+
+    s.append(definition(
+        "DÉFINITION — CONTRAINTE",
+        "Condition que toute solution acceptable doit satisfaire. Une "
+        "contrainte peut être&nbsp;: (a) une <i>égalité</i>, (b) une "
+        "<i>inégalité</i>, ou (c) une <i>contrainte logique</i> reliant "
+        "plusieurs variables. La région de l'espace des décisions qui "
+        "satisfait toutes les contraintes est dite <b>réalisable</b>."))
+
+    # --- C1 ---
+    s.append(Paragraph("6.1&nbsp;&nbsp;C1 — Unicité de la présence", ss["H2"]))
+    s.append(Paragraph(
+        "Un étudiant ne peut être marqué qu'une seule fois par séance. Si le "
+        "même étudiant scanne deux fois, la seconde tentative est rejetée par "
+        "la base de données <i>avant</i> même d'atteindre le code applicatif.",
+        ss["uBody"]))
+    s.append(formula("x<sub>ij</sub> + ℓ<sub>ij</sub> ≤ 1 ,&nbsp;&nbsp; ∀ i ∈ E, ∀ j ∈ S"))
+    s.append(Paragraph(
+        "<b>Implémentation&nbsp;:</b> contrainte SQL <font face='Courier' "
+        "size='8'>UNIQUE(sessionId, studentId)</font> sur la table "
+        "<font face='Courier' size='8'>attendances</font>. PostgreSQL "
+        "refuse l'insertion en violation de cette contrainte avec le "
+        "code d'erreur <font face='Courier' size='8'>P2002</font>.",
+        ss["uBody"]))
+
+    # --- C2 ---
+    s.append(Paragraph("6.2&nbsp;&nbsp;C2 — Contraintes temporelles", ss["H2"]))
+    s.append(Paragraph(
+        "Un token QR n'est cryptographiquement valide que pendant sa fenêtre "
+        "de 10 secondes. Pour gérer les scans à cheval sur la limite, on "
+        "accepte aussi la fenêtre <i>précédente</i> (tolérance d'un cran). "
+        "Un scan arrivant plus de 15 minutes après le début programmé "
+        "bascule l'étudiant en statut <i>EN RETARD</i>.",
+        ss["uBody"]))
+    s.append(formula(
+        "q<sub>jk</sub> valide ⟺ ⌊t<sub>scan</sub> / Δ⌋ ∈ { k<sub>k</sub>, "
+        "k<sub>k</sub> − 1 }<br/>Δt<sub>ij</sub> &gt; 15 min ⟹ "
+        "ℓ<sub>ij</sub> = 1"))
+    s.append(Paragraph(
+        "<b>Implémentation&nbsp;:</b> le serveur recalcule le HMAC pour la "
+        "fenêtre courante <i>et</i> la précédente, et compare en temps "
+        "constant via <font face='Courier' size='8'>crypto."
+        "timingSafeEqual</font>. La tolérance d'horloge client-serveur "
+        "est plafonnée à ±60 secondes.",
+        ss["uBody"]))
+
+    # --- C3 ---
+    s.append(Paragraph("6.3&nbsp;&nbsp;C3 — Contrainte géographique (Haversine)", ss["H2"]))
+    s.append(Paragraph(
+        "L'étudiant doit se trouver à l'intérieur d'un rayon configurable "
+        "autour des coordonnées GPS de la salle. La distance est calculée "
+        "par la <b>formule de Haversine</b>, qui donne la longueur du plus "
+        "court arc géodésique sur une sphère.",
+        ss["uBody"]))
+    s.append(formula(
+        "a = sin²((φ₂ − φ₁) / 2) + cos(φ₁) · cos(φ₂) · "
+        "sin²((λ₂ − λ₁) / 2)<br/>"
+        "d<sub>ij</sub> = 2R · arcsin(√a) ,&nbsp;&nbsp; R = 6 371 km<br/>"
+        "v<sub>ij</sub> = 1 ⟺ d<sub>ij</sub> ≤ R<sub>salle</sub> ∧ (autres "
+        "conditions de C5)"))
+    s.append(Paragraph(
+        "<b>Pourquoi Haversine et pas Pythagore&nbsp;?</b> Pythagore suppose "
+        "un plan euclidien — faux à l'échelle de la Terre. À l'échelle d'un "
+        "campus, l'erreur serait négligeable, mais Haversine est tout aussi "
+        "simple à coder et correct par construction.",
+        ss["uBody"]))
+    s.append(Paragraph(
+        "<b>Rayons configurés par salle&nbsp;:</b> Amphi A &amp; B = 150 m "
+        "(grands amphis, GPS moins précis en intérieur), Salle 204 = 80 m, "
+        "Labo Info = 60 m (petite pièce).",
+        ss["uBody"]))
+
+    s.append(PageBreak())
+
+    # --- C4 ---
+    s.append(Paragraph("6.4&nbsp;&nbsp;C4 — Contrainte cryptographique (HMAC-SHA256)", ss["H2"]))
+    s.append(Paragraph(
+        "Les tokens sont générés par <b>HMAC-SHA256</b>, schéma inspiré du "
+        "protocole TOTP (RFC 6238 — celui qui équipe Google Authenticator). "
+        "La clé secrète <i>secret<sub>j</sub></i> est tirée aléatoirement "
+        "(32 octets via <font face='Courier' size='8'>crypto.randomBytes"
+        "</font>) au moment de l'activation de la séance. Elle reste en "
+        "base, jamais transmise au navigateur.",
+        ss["uBody"]))
+    s.append(formula(
+        "q<sub>jk</sub> = HMAC-SHA256(secret<sub>j</sub>, k)[0..7] ,&nbsp;&nbsp; "
+        "(8 hex ⇒ 32 bits utiles)<br/>"
+        "P(deviner q<sub>jk</sub>) = 1 / 2³² ≈ 2,3 × 10<sup>−10</sup>"))
+    s.append(Paragraph(
+        "<b>Sécurité&nbsp;:</b> sans le secret, deviner le token sortant "
+        "revient à un brute-force sur l'espace de sortie (~4,3 milliards "
+        "d'essais). Même à 10 000 requêtes/seconde (déjà bloqué côté "
+        "serveur), il faudrait des jours pour deviner un seul token — qui "
+        "aurait expiré 10 s plus tard de toute façon.",
+        ss["uBody"]))
+
+    # --- C5 ---
+    s.append(Paragraph("6.5&nbsp;&nbsp;C5 — Empreinte d'appareil unique", ss["H2"]))
+    s.append(Paragraph(
+        "Un même appareil physique ne peut pas valider deux étudiants "
+        "différents pour la même séance. La détection se fait par <b>"
+        "empreinte SHA-256 de (UserAgent + résolution écran + langue)</b>. "
+        "Si deux scans présentent la même empreinte dans la même séance, "
+        "les <i>deux</i> présences passent en « non vérifiée » — le "
+        "professeur tranche manuellement après examen.",
+        ss["uBody"]))
+    s.append(formula(
+        "f<sub>ij</sub> = f<sub>i'j</sub> ∧ i ≠ i' ⟹ v<sub>ij</sub> = 0 "
+        "∧ v<sub>i'j</sub> = 0"))
+    s.append(warn(
+        "LIMITE ASSUMÉE",
+        "Deux smartphones de même modèle, même OS, même langue produiront la "
+        "<i>même empreinte</i>. C'est donc un mécanisme heuristique qui "
+        "décourage la fraude opportuniste, pas une preuve forte. C'est "
+        "précisément <i>pour cette raison</i> que la conséquence est « non "
+        "vérifiée » (à examiner) et non « refusée »&nbsp;: on ne veut pas "
+        "pénaliser deux frères qui ont le même téléphone."))
+
+    s.append(PageBreak())
+
+    # ════════════════════════════════════════════════════════════════════════
+    # § 7 — MÉCANISME QR ROTATIF
+    # ════════════════════════════════════════════════════════════════════════
+    s.append(Paragraph("§ 7 — Le mécanisme QR rotatif", ss["H1"]))
+    s.append(hr())
+
+    s.append(Paragraph(
+        "C'est la pièce centrale du projet, qui rend la fraude par photo "
+        "impossible&nbsp;: <b>le QR change toutes les 10 secondes</b>. Toute "
+        "capture d'écran est obsolète avant d'avoir pu être partagée. Le "
+        "défi technique a été double&nbsp;: (1) construire un schéma "
+        "cryptographique correct pour générer ces tokens, et (2) obtenir un "
+        "affichage <i>visuellement stable</i> pendant chaque fenêtre de "
+        "10 s — pas de clignotement.",
+        ss["uBody"]))
+
+    s.append(definition(
+        "DÉFINITION — QR CODE",
+        "Un <i>Quick Response code</i> est un code-barres 2D, capable "
+        "d'encoder du texte ASCII jusqu'à environ 4 296 caractères. On peut "
+        "y embarquer une URL, un JSON, une chaîne signée. Notre QR encode "
+        "un JSON minimal&nbsp;: "
+        "<font face='Courier' size='8'>{ \"s\": sessionId, \"t\": token, "
+        "\"ts\": windowStart }</font>."))
+
+    s.append(Paragraph("7.1&nbsp;&nbsp;Qu'est-ce que HMAC-SHA256&nbsp;?", ss["H2"]))
+    s.append(Paragraph(
+        "<b>HMAC</b> = <i>Hash-based Message Authentication Code</i>. C'est "
+        "un mécanisme cryptographique standardisé qui prend deux entrées — "
+        "une <i>clé secrète</i> et un <i>message</i> — et produit une "
+        "<i>signature</i> qui prouve simultanément&nbsp;:",
+        ss["uBody"]))
+    s.append(bullet(
+        "L'<b>intégrité</b> du message&nbsp;: il n'a pas été modifié."))
+    s.append(bullet(
+        "L'<b>authenticité</b>&nbsp;: seul celui qui possède la clé "
+        "secrète aurait pu produire cette signature."))
+    s.append(Paragraph(
+        "<b>SHA-256</b> est la fonction de hachage interne utilisée — elle "
+        "produit 256 bits de sortie. HMAC-SHA256 est utilisé partout&nbsp;: "
+        "AWS, Stripe, GitHub webhooks, JWT, etc.",
+        ss["uBody"]))
+
+    s.append(Paragraph("7.2&nbsp;&nbsp;Comment le token est généré", ss["H2"]))
+    s.append(code_block(
+        "// À l'activation de la séance, on tire un secret aléatoire de 32 octets\n"
+        "secretⱼ = randomBytes(32)              // stocké en base, jamais envoyé\n\n"
+        "// À chaque requête /api/sessions/{id}/qr-token\n"
+        "now         = floor(Date.now() / 1000) // timestamp courant en s\n"
+        "k           = floor(now / 10)          // indice de la fenêtre courante (Δ = 10 s)\n"
+        "windowStart = k × 10                   // début de la fenêtre en epoch\n"
+        "qⱼₖ         = HMAC-SHA256(secretⱼ, k)[0..7]  // 8 premiers hex\n"
+        "expiresAt   = (k + 1) × 10 × 1000      // fin de fenêtre en ms\n\n"
+        "// Le payload du QR est stable pendant toute la fenêtre\n"
+        "payload = JSON.stringify({ s: sessionId, t: qⱼₖ, ts: windowStart })"
     ))
 
-    story.append(Paragraph(
-        "Maximiser &nbsp;&nbsp; Z = &alpha; &middot; Z<sub>1</sub> + &beta; &middot; Z<sub>2</sub> + &gamma; &middot; Z<sub>3</sub>",
-        styles['Formula']
+    s.append(Paragraph("7.3&nbsp;&nbsp;Pourquoi windowStart et non now&nbsp;?", ss["H2"]))
+    s.append(Paragraph(
+        "Dans la première version, le payload incluait <font face='Courier' "
+        "size='8'>ts = now</font>. Conséquence&nbsp;: chaque sondage du "
+        "serveur renvoyait un payload <i>différent</i>, même si le token "
+        "<font face='Courier' size='8'>t</font> était identique. Le canvas "
+        "QR se redessinait à chaque réponse&nbsp;: l'image clignotait "
+        "visiblement.",
+        ss["uBody"]))
+
+    s.append(warn(
+        "LE BUG CORRIGÉ",
+        "<b>Symptôme&nbsp;:</b> clignotement du QR toutes les 2 secondes, "
+        "désorientant pour les étudiants en train de scanner. "
+        "<b>Cause racine&nbsp;:</b> le payload du QR contenait l'horodatage "
+        "<i>de la requête</i>, qui change à chaque appel. "
+        "<b>Correctif&nbsp;:</b> stocker à la place "
+        "<font face='Courier' size='8'>windowStart = k × Δ</font>, "
+        "identique pendant toute la fenêtre. Le payload — donc le QR — "
+        "devient stable pendant 10 secondes, puis bascule d'un coup à la "
+        "fenêtre suivante."))
+
+    s.append(Paragraph("7.4&nbsp;&nbsp;Polling intelligent — un seul fetch par fenêtre", ss["H2"]))
+    s.append(Paragraph(
+        "Sonder à intervalle fixe est gaspilleur de bande passante et "
+        "provoque des micro-décalages d'affichage. Notre approche&nbsp;: "
+        "planifier le prochain fetch exactement <b>200 ms après "
+        "l'expiration</b> de la fenêtre courante. Le compte à rebours à "
+        "l'écran est dérivé continûment de "
+        "<font face='Courier' size='8'>expiresAt − Date.now()</font> et "
+        "rafraîchi toutes les 200 ms — visuellement fluide.",
+        ss["uBody"]))
+
+    s.append(Paragraph("7.5&nbsp;&nbsp;Comment l'étudiant scanne et soumet", ss["H2"]))
+    s.append(code_block(
+        "Smartphone étudiant          API /attendance              PostgreSQL\n"
+        "\n"
+        "  caméra → jsQR                 |                            |\n"
+        "  décode payload                |                            |\n"
+        "  + GPS (navigator.geolocation) |                            |\n"
+        "  + fingerprint                 |                            |\n"
+        "                                |                            |\n"
+        "  POST { token, ts, lat, lon, deviceInfo }                    |\n"
+        " ------------------------------->                            |\n"
+        "                                |  1. requireApiRole(STUDENT)|\n"
+        "                                |  2. studentId ← session JWT|  ← pas du body !\n"
+        "                                |  3. recalc HMAC(secret, k) |\n"
+        "                                |     timingSafeEqual        |\n"
+        "                                |  4. Haversine(stu, salle)  |\n"
+        "                                |  5. SHA-256(deviceInfo)    |\n"
+        "                                |  6. statut = retard ?      |\n"
+        "                                | ---- UPDATE attendance --->|\n"
+        " <- { status, verified, distance }                           |"
     ))
 
-    story.append(Paragraph(
-        "O&ugrave; :",
-        styles['BodyText2']
-    ))
+    s.append(example(
+        "POURQUOI studentId VIENT DU JWT, PAS DU BODY ?",
+        "Sans cette protection, un étudiant malin pourrait ouvrir la console "
+        "de son navigateur et envoyer une requête POST en spécifiant l'ID "
+        "d'un absent. Notre serveur ignore complètement le "
+        "<font face='Courier' size='8'>studentId</font> envoyé dans le corps "
+        "de la requête — il le lit depuis le token JWT signé qui prouve "
+        "l'identité de l'utilisateur connecté. C'est la <b>seule</b> "
+        "garantie qu'un scan ne peut marquer présent que la personne "
+        "réellement connectée."))
 
-    story.append(bullet(
-        "<b>Z<sub>1</sub> = Taux de couverture</b> : Pourcentage d'&eacute;tudiants dont la pr&eacute;sence est "
-        "enregistr&eacute;e automatiquement (vs. manuellement)"
-    ))
-    story.append(Paragraph(
-        "Z<sub>1</sub> = (1/|S|) &middot; &Sigma;<sub>j</sub> [ (&Sigma;<sub>i</sub> x<sub>ij</sub>) / |E<sub>j</sub>| ]",
-        styles['Formula']
-    ))
+    s.append(PageBreak())
 
-    story.append(bullet(
-        "<b>Z<sub>2</sub> = Taux de v&eacute;rification GPS</b> : Pourcentage des pr&eacute;sences g&eacute;o-v&eacute;rifi&eacute;es"
-    ))
-    story.append(Paragraph(
-        "Z<sub>2</sub> = (&Sigma;<sub>i,j</sub> v<sub>ij</sub>) / (&Sigma;<sub>i,j</sub> x<sub>ij</sub>)",
-        styles['Formula']
-    ))
+    # ════════════════════════════════════════════════════════════════════════
+    # § 8 — ANTI-FRAUDE
+    # ════════════════════════════════════════════════════════════════════════
+    s.append(Paragraph("§ 8 — Quatre couches anti-fraude", ss["H1"]))
+    s.append(hr())
 
-    story.append(bullet(
-        "<b>Z<sub>3</sub> = Efficacit&eacute; temporelle</b> : R&eacute;duction du temps d'appel"
-    ))
-    story.append(Paragraph(
-        "Z<sub>3</sub> = 1 - (T<sub>QR</sub> / T<sub>manuel</sub>)&nbsp;&nbsp;&nbsp;o&ugrave; T<sub>QR</sub> &asymp; 30s, T<sub>manuel</sub> &asymp; 600s",
-        styles['Formula']
-    ))
+    s.append(Paragraph(
+        "Les contraintes C2 à C5 du modèle se traduisent en quatre couches "
+        "de défense techniques, <i>indépendantes</i> les unes des autres. "
+        "C'est le principe de <b>défense en profondeur</b>&nbsp;: même si "
+        "une couche tombe (par exemple, l'étudiant a refusé la "
+        "géolocalisation), les autres restent actives et limitent l'impact.",
+        ss["uBody"]))
 
-    story.append(Paragraph(
-        "Avec les poids &alpha; = 0.4, &beta; = 0.3, &gamma; = 0.3 (calibrables selon les priorit&eacute;s de l'universit&eacute;).",
-        styles['BodyText2']
-    ))
+    s.append(definition(
+        "DÉFINITION — DÉFENSE EN PROFONDEUR",
+        "Stratégie de sécurité héritée du domaine militaire&nbsp;: plutôt "
+        "qu'un mur unique, on superpose plusieurs lignes de défense de "
+        "natures différentes. Un attaquant qui contourne l'une est arrêté "
+        "par la suivante."))
 
-    # 2.3 Constraints
-    story.append(Paragraph("2.3 Contraintes", styles['SubSection']))
-
-    story.append(Paragraph("Les contraintes du syst&egrave;me se d&eacute;composent en cinq cat&eacute;gories :", styles['BodyText2']))
-
-    story.append(Paragraph("(C1) Contraintes d'Unicit&eacute;", styles['SubSubSection']))
-    story.append(Paragraph(
-        "Chaque &eacute;tudiant ne peut &ecirc;tre compt&eacute; qu'une seule fois par s&eacute;ance. "
-        "Impl&eacute;ment&eacute; par une contrainte UNIQUE en base de donn&eacute;es sur (sessionId, studentId) :",
-        styles['BodyText2']
-    ))
-    story.append(Paragraph(
-        "x<sub>ij</sub> + r<sub>ij</sub> &le; 1 &nbsp;&nbsp;&nbsp; &forall; i &isin; E, &forall; j &isin; S",
-        styles['Formula']
-    ))
-
-    story.append(Paragraph("(C2) Contraintes Temporelles", styles['SubSubSection']))
-    story.append(Paragraph(
-        "Un token QR n'est valide que pendant sa fen&ecirc;tre de rotation (20 secondes par d&eacute;faut), "
-        "plus une tol&eacute;rance d'un intervalle pour le d&eacute;calage d'horloge :",
-        styles['BodyText2']
-    ))
-    story.append(Paragraph(
-        "q<sub>jk</sub> est valide ssi &nbsp; |t<sub>scan</sub> - t<sub>k</sub>| &le; 2 &middot; &Delta;rotation<br/>"
-        "&Delta;t<sub>ij</sub> &gt; 15 min &rArr; r<sub>ij</sub> = 1 &nbsp;(marqu&eacute; EN RETARD)",
-        styles['Formula']
-    ))
-
-    story.append(Paragraph("(C3) Contraintes G&eacute;ographiques", styles['SubSubSection']))
-    story.append(Paragraph(
-        "L'&eacute;tudiant doit se trouver dans le rayon de g&eacute;olocalisation de la salle (configurable par salle, "
-        "entre 60m et 150m dans la configuration actuelle). "
-        "La distance est calcul&eacute;e par la <b>formule de Haversine</b> :",
-        styles['BodyText2']
-    ))
-    story.append(Paragraph(
-        "d<sub>ij</sub> = 2R &middot; arcsin(&radic;(sin<super>2</super>((&phi;<sub>2</sub>-&phi;<sub>1</sub>)/2) + "
-        "cos(&phi;<sub>1</sub>)&middot;cos(&phi;<sub>2</sub>)&middot;sin<super>2</super>((&lambda;<sub>2</sub>-&lambda;<sub>1</sub>)/2)))<br/>"
-        "v<sub>ij</sub> = 1 ssi d<sub>ij</sub> &le; R<sub>salle</sub>",
-        styles['Formula']
-    ))
-    story.append(Paragraph(
-        "O&ugrave; R = 6 371 km (rayon terrestre), (&phi;, &lambda;) sont les coordonn&eacute;es de latitude et longitude, "
-        "et R<sub>salle</sub> est le rayon configur&eacute; de la salle.",
-        styles['BodyText2']
-    ))
-
-    story.append(Paragraph("(C4) Contraintes de S&eacute;curit&eacute; Cryptographique", styles['SubSubSection']))
-    story.append(Paragraph(
-        "Chaque token est g&eacute;n&eacute;r&eacute; par HMAC-SHA256, ce qui emp&ecirc;che tout &eacute;tudiant de "
-        "pr&eacute;dire ou forger un token :",
-        styles['BodyText2']
-    ))
-    story.append(Paragraph(
-        "q<sub>jk</sub> = HMAC-SHA256(secret<sub>j</sub>, &lfloor;t / &Delta;rotation&rfloor;).hex()[0:8]<br/>"
-        "P(deviner q<sub>jk</sub>) = 1/16<super>8</super> = 1/4.29 &times; 10<super>9</super> &asymp; 0",
-        styles['Formula']
-    ))
-
-    story.append(Paragraph("(C5) Contraintes d'Appareil", styles['SubSubSection']))
-    story.append(Paragraph(
-        "Un m&ecirc;me appareil ne peut pas valider la pr&eacute;sence de deux &eacute;tudiants diff&eacute;rents "
-        "pour la m&ecirc;me s&eacute;ance :",
-        styles['BodyText2']
-    ))
-    story.append(Paragraph(
-        "f<sub>ij</sub> = f<sub>i'j</sub> &and; i &ne; i' &rArr; v<sub>ij</sub> = 0 &and; v<sub>i'j</sub> = 0<br/>"
-        "(les deux pr&eacute;sences sont marqu&eacute;es comme non-v&eacute;rifi&eacute;es, le professeur tranchera)",
-        styles['Formula']
-    ))
-
-    # 2.4 Complexity
-    story.append(Paragraph("2.4 Analyse de Complexit&eacute;", styles['SubSection']))
-    story.append(Paragraph(
-        "Le probl&egrave;me d'affectation de pr&eacute;sence est r&eacute;solu en temps polynomial gr&acirc;ce "
-        "&agrave; la d&eacute;composition du probl&egrave;me global en sous-probl&egrave;mes ind&eacute;pendants par s&eacute;ance. "
-        "Pour chaque s&eacute;ance s<sub>j</sub> avec n &eacute;tudiants et k intervalles de rotation :",
-        styles['BodyText2']
-    ))
-
-    complexity_table = make_table(
-        ["Op&eacute;ration", "Complexit&eacute;", "Explication"],
+    layers_tbl = make_table(
+        ["#", "Couche", "Bloque"],
         [
-            ["G&eacute;n&eacute;ration token QR", "O(1)", "Un HMAC par intervalle, calcul constant"],
-            ["Validation token", "O(1)", "V&eacute;rification HMAC + comparaison timing-safe"],
-            ["Calcul distance GPS", "O(1)", "Formule de Haversine, op&eacute;rations trigonom&eacute;triques fixes"],
-            ["V&eacute;rification unicit&eacute;", "O(1)", "Lookup par index unique en base de donn&eacute;es"],
-            ["Activation s&eacute;ance", "O(n)", "Cr&eacute;ation de n enregistrements ABSENT"],
-            ["Scan d'un &eacute;tudiant", "O(1)", "UPDATE d'un seul enregistrement"],
-            ["Total par s&eacute;ance", "O(n)", "Lin&eacute;aire en nombre d'&eacute;tudiants"],
+            ["1", "<b>Rotation des tokens (10 s)</b> — nouveau token HMAC-SHA256 "
+                 "toutes les 10 secondes. Le token change avant qu'une photo ne "
+                 "puisse circuler.",
+             "capture d'écran partagée"],
+            ["2", "<b>Géofence GPS (Haversine)</b> — distance au centre de la "
+                 "salle calculée à la réception. Hors rayon → présence marquée "
+                 "non vérifiée.",
+             "scan à distance, visio"],
+            ["3", "<b>Empreinte d'appareil</b> — SHA-256 de (UserAgent + "
+                 "résolution + langue), comparée aux autres présences de la "
+                 "séance.",
+             "un téléphone pour deux comptes"],
+            ["4", "<b>Comparaison à temps constant</b> — "
+                 "<font face='Courier' size='8'>crypto.timingSafeEqual</font>, "
+                 "durée indépendante du préfixe correct.",
+             "timing attack"],
         ],
-        col_widths=[4.5*cm, 3*cm, 7.5*cm]
+        col_widths=[0.8 * cm, 11.2 * cm, 3.5 * cm],
     )
-    story.append(complexity_table)
-    story.append(Paragraph("Tableau 3 : Analyse de complexit&eacute; algorithmique", styles['Caption']))
+    s.append(layers_tbl)
+    s.append(Paragraph("Tableau 6 — Les quatre couches", ss["Caption"]))
 
-    story.append(PageBreak())
-
-    # ═══════════════════════════════════════════════════════════
-    # 3. SOLUTION TECHNIQUE
-    # ═══════════════════════════════════════════════════════════
-    story.append(Paragraph("3. Solution Technique : Architecture du Syst&egrave;me", styles['SectionTitle']))
-    story.append(hr())
-
-    # 3.1 Tech Choices
-    story.append(Paragraph("3.1 Choix Technologiques et Justifications", styles['SubSection']))
-
-    tech_table = make_table(
-        ["Technologie", "R&ocirc;le", "Justification"],
-        [
-            ["Next.js 16", "Framework web full-stack", "App Router, SSR/SSG, API Routes int&eacute;gr&eacute;es, d&eacute;ploiement Vercel natif"],
-            ["TypeScript", "Langage", "Typage statique, d&eacute;tection d'erreurs &agrave; la compilation, maintenabilit&eacute;"],
-            ["Prisma 6", "ORM", "G&eacute;n&eacute;ration de types, requ&ecirc;tes typ&eacute;es, support PostgreSQL avec connection pooling"],
-            ["PostgreSQL (Neon)", "Base de donn&eacute;es", "Base relationnelle robuste, h&eacute;berg&eacute;e dans le cloud (Neon), serverless-compatible"],
-            ["NextAuth.js v4", "Authentification", "JWT + Credentials provider, sessions s&eacute;curis&eacute;es, RBAC int&eacute;gr&eacute;"],
-            ["Tailwind CSS 4", "Styles", "Utility-first, responsive natif, taille CSS minimale"],
-            ["Zod 4", "Validation", "Sch&eacute;mas typ&eacute;s, validation runtime des entr&eacute;es API"],
-            ["jsQR", "D&eacute;codage QR", "D&eacute;codage c&ocirc;t&eacute; client depuis le flux cam&eacute;ra, l&eacute;ger"],
-            ["qrcode", "G&eacute;n&eacute;ration QR", "Rendu Canvas c&ocirc;t&eacute; client, QR haute r&eacute;solution"],
-            ["Vercel", "H&eacute;bergement", "D&eacute;ploiement gratuit, CDN global, serverless functions, HTTPS automatique"],
-        ],
-        col_widths=[3*cm, 3.5*cm, 8.5*cm]
-    )
-    story.append(tech_table)
-    story.append(Paragraph("Tableau 4 : Stack technologique", styles['Caption']))
-
-    # 3.2 Data Model
-    story.append(Paragraph("3.2 Mod&egrave;le de Donn&eacute;es (13 Entit&eacute;s)", styles['SubSection']))
-
-    story.append(Paragraph(
-        "Le sch&eacute;ma de base de donn&eacute;es comprend 13 mod&egrave;les Prisma interconnect&eacute;s, "
-        "structur&eacute;s selon le principe de normalisation 3NF. La base est h&eacute;berg&eacute;e sur "
-        "Neon PostgreSQL (serverless) avec connection pooling via PgBouncer :",
-        styles['BodyText2']
-    ))
-
-    model_table = make_table(
-        ["Entit&eacute;", "Champs Cl&eacute;s", "Relations"],
-        [
-            ["User", "id, email, passwordHash, role, firstName, lastName", "1:1 Professor, 1:1 Student"],
-            ["Department", "id, name, code (unique)", "1:N Program"],
-            ["Program", "id, name, code, departmentId", "1:N Group, 1:N Course"],
-            ["Group", "id, name, semester, programId", "M:N Student, M:N Course"],
-            ["Professor", "id, employeeId, userId", "1:N Course, 1:N Session"],
-            ["Student", "id, studentId, userId, enrollmentYear", "M:N Group, 1:N Attendance"],
-            ["StudentGroup", "studentId, groupId", "Table de jonction M:N"],
-            ["Room", "id, name, building, latitude, longitude, radius", "1:N Session"],
-            ["Course", "id, name, code, professorId, programId, totalHours", "1:N Session, M:N Group"],
-            ["CourseGroup", "courseId, groupId", "Table de jonction M:N"],
-            ["Session", "id, date, startTime, endTime, status, qrSecret, qrRotationSec", "1:N Attendance"],
-            ["Attendance", "id, sessionId, studentId, status, scannedAt, verified, deviceHash, ipAddress", "UNIQUE(sessionId, studentId)"],
-        ],
-        col_widths=[2.5*cm, 5.5*cm, 7*cm]
-    )
-    story.append(model_table)
-    story.append(Paragraph("Tableau 5 : Mod&egrave;le de donn&eacute;es", styles['Caption']))
-
-    story.append(Paragraph(
-        "La relation cl&eacute; est <b>Session &rarr; Attendance</b> : &agrave; l'activation d'une s&eacute;ance, "
-        "un enregistrement ABSENT est pr&eacute;-cr&eacute;&eacute; pour chaque &eacute;tudiant inscrit (via les groupes du cours). "
-        "Quand un &eacute;tudiant scanne le QR, son enregistrement passe de ABSENT &agrave; PRESENT ou LATE.",
-        styles['BodyText2']
-    ))
-
-    # 3.3 QR Algorithm
-    story.append(Paragraph("3.3 Algorithme de QR Code Rotatif (HMAC-SHA256)", styles['SubSection']))
-
-    story.append(Paragraph(
-        "C'est le c&oelig;ur cryptographique du syst&egrave;me, inspir&eacute; du protocole TOTP (Time-based "
-        "One-Time Password, RFC 6238) utilis&eacute; dans l'authentification &agrave; deux facteurs. "
-        "Le principe est le suivant :",
-        styles['BodyText2']
-    ))
-
-    story.append(Paragraph("&Eacute;tape 1 : Activation de la s&eacute;ance", styles['SubSubSection']))
-    story.append(bullet("Le serveur g&eacute;n&egrave;re un <b>secret cryptographique</b> de 32 octets al&eacute;atoires (256 bits d'entropie) via <i>crypto.randomBytes(32)</i>"))
-    story.append(bullet("Ce secret est stock&eacute; en base dans le champ <b>qrSecret</b> de la s&eacute;ance"))
-    story.append(bullet("Il n'est <b>jamais expos&eacute;</b> au client (ni au professeur, ni aux &eacute;tudiants)"))
-
-    story.append(Paragraph("&Eacute;tape 2 : G&eacute;n&eacute;ration des tokens rotatifs", styles['SubSubSection']))
-    story.append(Paragraph(
-        "Toutes les 20 secondes, le serveur calcule un nouveau token :",
-        styles['BodyText2']
-    ))
-    story.append(Paragraph(
-        "counter = floor(timestamp / interval)<br/>"
-        "token = HMAC-SHA256(secret, counter).hex()[0:8]",
-        styles['Formula']
-    ))
-    story.append(Paragraph(
-        "Le token est un hash hexad&eacute;cimal de 8 caract&egrave;res (32 bits d'entropie), int&eacute;gr&eacute; dans un payload JSON "
-        "compact : <i>{\"s\": \"sessionId\", \"t\": \"token\", \"ts\": timestamp}</i>. "
-        "Ce JSON est encod&eacute; dans le QR code affich&eacute; sur l'&eacute;cran du professeur. "
-        "La taille r&eacute;duite du token (8 caract&egrave;res) garantit un QR code clair et facilement scannable, "
-        "tout en offrant 4,29 milliards de combinaisons possibles par fen&ecirc;tre de 20 secondes.",
-        styles['BodyText2']
-    ))
-
-    story.append(Paragraph("&Eacute;tape 3 : Validation c&ocirc;t&eacute; serveur", styles['SubSubSection']))
-    story.append(Paragraph(
-        "Quand un &eacute;tudiant scanne le QR, le serveur v&eacute;rifie le token :",
-        styles['BodyText2']
-    ))
-    story.append(bullet("Recalcule le token attendu pour la fen&ecirc;tre courante ET la fen&ecirc;tre pr&eacute;c&eacute;dente (tol&eacute;rance de 1 fen&ecirc;tre)"))
-    story.append(bullet("Utilise <b>crypto.timingSafeEqual()</b> pour la comparaison (pr&eacute;vient les attaques par timing)"))
-    story.append(bullet("V&eacute;rifie que le timestamp du client n'a pas plus de 60 secondes de d&eacute;calage (MAX_CLOCK_SKEW_SEC)"))
-
-    story.append(Paragraph("&Eacute;tape 4 : Polling temps r&eacute;el", styles['SubSubSection']))
-    story.append(Paragraph(
-        "Le navigateur du professeur envoie une requ&ecirc;te HTTP GET &agrave; l'endpoint "
-        "<i>/api/sessions/[id]/qr-token</i> toutes les 2 secondes. Le serveur retourne le token "
-        "courant, le temps d'expiration, et l'intervalle de rotation. Le client ne re-g&eacute;n&egrave;re "
-        "le QR code que si le payload a r&eacute;ellement chang&eacute; (optimisation via ref React). "
-        "Un anneau de compte &agrave; rebours SVG anim&eacute; indique visuellement le temps restant avant "
-        "la prochaine rotation. Cette architecture de polling est compatible avec les fonctions "
-        "serverless de Vercel (pas de connexion persistante n&eacute;cessaire).",
-        styles['BodyText2']
-    ))
-
-    # 3.4 Haversine
-    story.append(Paragraph("3.4 G&eacute;olocalisation et Formule de Haversine", styles['SubSection']))
-    story.append(Paragraph(
-        "Pour v&eacute;rifier que l'&eacute;tudiant est physiquement pr&eacute;sent dans la salle, le syst&egrave;me "
-        "utilise la <b>formule de Haversine</b> pour calculer la distance entre les coordonn&eacute;es GPS "
-        "du smartphone et celles de la salle (pr&eacute;-configur&eacute;es par l'administrateur). "
-        "Les coordonn&eacute;es du campus UEMF sont centr&eacute;es autour de (34.0531&deg;N, -4.9998&deg;W).",
-        styles['BodyText2']
-    ))
-
-    story.append(Paragraph(
-        "a = sin<super>2</super>((&phi;<sub>2</sub>-&phi;<sub>1</sub>)/2) + cos(&phi;<sub>1</sub>) &middot; "
-        "cos(&phi;<sub>2</sub>) &middot; sin<super>2</super>((&lambda;<sub>2</sub>-&lambda;<sub>1</sub>)/2)<br/>"
-        "c = 2 &middot; atan2(&radic;a, &radic;(1-a))<br/>"
-        "distance = R &middot; c &nbsp;&nbsp;&nbsp;&nbsp;(R = 6 371 000 m)",
-        styles['Formula']
-    ))
-
-    story.append(Paragraph(
-        "Les salles configur&eacute;es dans le syst&egrave;me ont des rayons variables :",
-        styles['BodyText2']
-    ))
-
-    rooms_table = make_table(
-        ["Salle", "B&acirc;timent", "Rayon (m)", "Capacit&eacute;"],
-        [
-            ["Amphi A", "B&acirc;timent Principal", "150", "200"],
-            ["Salle 204", "B&acirc;timent B", "80", "40"],
-            ["Labo Info 1", "B&acirc;timent EIDIA", "60", "30"],
-        ],
-        col_widths=[3.5*cm, 4*cm, 3*cm, 3*cm]
-    )
-    story.append(rooms_table)
-    story.append(Paragraph("Tableau 6 : Salles configur&eacute;es avec rayons GPS", styles['Caption']))
-
-    story.append(Paragraph(
-        "<b>Design important</b> : si le GPS &eacute;choue ou si l'&eacute;tudiant est hors zone, la pr&eacute;sence "
-        "est <b>quand m&ecirc;me enregistr&eacute;e</b> mais marqu&eacute;e comme <b>non v&eacute;rifi&eacute;e</b> (verified = false). "
-        "Le professeur d&eacute;cide ensuite. Cela &eacute;vite de bloquer des &eacute;tudiants pour des probl&egrave;mes techniques GPS.",
-        styles['BodyText2']
-    ))
-
-    # 3.5 Polling
-    story.append(Paragraph("3.5 Polling Temps R&eacute;el", styles['SubSection']))
-    story.append(Paragraph(
-        "Le syst&egrave;me utilise un m&eacute;canisme de <b>polling HTTP</b> pour les mises &agrave; jour en temps r&eacute;el. "
-        "Ce choix a &eacute;t&eacute; fait pour la compatibilit&eacute; avec les fonctions serverless de Vercel "
-        "(qui ne supportent pas les connexions persistantes comme les WebSockets ou SSE). "
-        "Deux boucles de polling fonctionnent en parall&egrave;le sur la page du QR code :",
-        styles['BodyText2']
-    ))
-
-    story.append(bullet(
-        "<b>Polling QR Token</b> (toutes les 2 secondes) : r&eacute;cup&egrave;re le token courant depuis "
-        "<i>/api/sessions/[id]/qr-token</i>. Ne re-g&eacute;n&egrave;re le QR que si le payload a chang&eacute;."
-    ))
-    story.append(bullet(
-        "<b>Polling Session Info</b> (toutes les 5 secondes) : r&eacute;cup&egrave;re le compteur de "
-        "pr&eacute;sences en direct depuis <i>/api/sessions/[id]</i>."
-    ))
-
-    story.append(Paragraph(
-        "L'intervalle de 2 secondes pour le polling QR garantit que le QR affich&eacute; est toujours &agrave; jour, "
-        "m&ecirc;me avec la rotation de 20 secondes. L'utilisation de <i>useCallback</i> et <i>useRef</i> "
-        "&eacute;vite les re-rendus inutiles du composant React.",
-        styles['BodyText2']
-    ))
-
-    story.append(PageBreak())
-
-    # ═══════════════════════════════════════════════════════════
-    # 4. ANTI-FRAUD
-    # ═══════════════════════════════════════════════════════════
-    story.append(Paragraph("4. M&eacute;canismes Anti-Fraude", styles['SectionTitle']))
-    story.append(hr())
-
-    story.append(Paragraph(
-        "Le syst&egrave;me impl&eacute;mente <b>4 couches de protection</b> ind&eacute;pendantes et compl&eacute;mentaires. "
-        "M&ecirc;me si une couche est contourn&eacute;e, les autres restent actives.",
-        styles['BodyText2']
-    ))
-
-    fraud_table = make_table(
-        ["Couche", "M&eacute;canisme", "Attaque bloqu&eacute;e", "Impl&eacute;mentation"],
-        [
-            ["1. Rotation des tokens",
-             "Nouveau QR toutes les 20s via HMAC-SHA256",
-             "Capture d'&eacute;cran / partage de photo du QR",
-             "generateQrToken() avec counter temporel"],
-            ["2. G&eacute;olocalisation",
-             "Formule de Haversine, rayon configurable par salle",
-             "&Eacute;tudiant scannant depuis la maison / un autre b&acirc;timent",
-             "isWithinGeofence() + coordonn&eacute;es GPS de la salle"],
-            ["3. Empreinte appareil",
-             "SHA-256(UserAgent + r&eacute;solution + langue)",
-             "Un &eacute;tudiant scanne pour deux personnes avec le m&ecirc;me t&eacute;l&eacute;phone",
-             "deviceHash en base, d&eacute;tection de duplicata par session"],
-            ["4. Comparaison s&ucirc;re",
-             "crypto.timingSafeEqual()",
-             "Attaque par timing (mesure du temps de comparaison)",
-             "V&eacute;rification en temps constant, aucune fuite d'information"],
-        ],
-        col_widths=[2.8*cm, 3.5*cm, 4.2*cm, 4.5*cm]
-    )
-    story.append(fraud_table)
-    story.append(Paragraph("Tableau 7 : Les 4 couches anti-fraude", styles['Caption']))
-
-    story.append(Paragraph("Sc&eacute;narios de fraude et r&eacute;ponses", styles['SubSection']))
-
+    s.append(Paragraph("8.1&nbsp;&nbsp;Scénarios concrets et réponses du système", ss["H2"]))
     scenarios = [
-        ("<b>Sc&eacute;nario 1 : Photo du QR code</b> &mdash; Un &eacute;tudiant prend une photo et l'envoie &agrave; un ami absent. "
-         "<b>R&eacute;ponse</b> : le QR change toutes les 20 secondes. Le temps de recevoir la photo, le QR est d&eacute;j&agrave; expir&eacute;."),
-        ("<b>Sc&eacute;nario 2 : Scan &agrave; distance</b> &mdash; Un &eacute;tudiant reste &agrave; la maison et obtient le QR en temps r&eacute;el "
-         "(ex: appel vid&eacute;o). <b>R&eacute;ponse</b> : la g&eacute;olocalisation d&eacute;tecte qu'il est hors du rayon de la salle. "
-         "Sa pr&eacute;sence est marqu&eacute;e comme non-v&eacute;rifi&eacute;e et signal&eacute;e au professeur."),
-        ("<b>Sc&eacute;nario 3 : Un seul t&eacute;l&eacute;phone pour deux</b> &mdash; Un &eacute;tudiant scanne deux fois "
-         "avec des comptes diff&eacute;rents. <b>R&eacute;ponse</b> : l'empreinte de l'appareil (SHA-256 du UserAgent, "
-         "r&eacute;solution d'&eacute;cran, et langue) est la m&ecirc;me. "
-         "Les deux pr&eacute;sences sont marqu&eacute;es non-v&eacute;rifi&eacute;es et signal&eacute;es au professeur."),
-        ("<b>Sc&eacute;nario 4 : Brute-force du token</b> &mdash; Un attaquant essaie de deviner le token. "
-         "<b>R&eacute;ponse</b> : 8 caract&egrave;res hex = 32 bits d'entropie = 4,29 &times; 10<super>9</super> combinaisons. "
-         "Avec un token qui change toutes les 20s et la latence r&eacute;seau, c'est infaisable en pratique."),
+        ("Photo du QR transmise à un absent",
+         "L'étudiant prend une photo de l'écran et l'envoie à un ami resté chez lui.",
+         "Le QR change toutes les 10 s — la photo est expirée avant que le message n'arrive (C2)."),
+        ("Scan en visioconférence depuis l'extérieur",
+         "L'ami absent ouvre un appel vidéo et scanne l'écran via la caméra distante.",
+         "Le GPS du téléphone scanneur est à plusieurs centaines de mètres → v = 0 (C3)."),
+        ("Un seul téléphone, deux comptes",
+         "L'étudiant scanne avec son compte, se déconnecte, se reconnecte avec le compte d'un ami, rescanne.",
+         "Empreinte identique détectée → les deux présences passent en non vérifiée (C5)."),
+        ("Bypass direct de l'API (sans caméra)",
+         "L'étudiant ouvre la console du navigateur et envoie un POST avec le studentId d'un absent.",
+         "Le serveur ignore le studentId du body et lit l'identité depuis le JWT signé."),
+        ("Brute-force du token via le réseau",
+         "Un script essaie des millions de tokens hex aléatoires.",
+         "2³² ≈ 4,3 milliards de possibilités × fenêtre de 10 s → impossible dans le délai (C4)."),
+        ("Manipulation de l'horloge du téléphone",
+         "L'étudiant change l'horloge pour faire valider un vieux token capturé hier.",
+         "La fenêtre est calculée côté serveur ; tolérance ±60 s seulement."),
     ]
-    for s in scenarios:
-        story.append(bullet(s))
-
-    story.append(PageBreak())
-
-    # ═══════════════════════════════════════════════════════════
-    # 5. PERFORMANCE
-    # ═══════════════════════════════════════════════════════════
-    story.append(Paragraph("5. Analyse de Performance et Scalabilit&eacute;", styles['SectionTitle']))
-    story.append(hr())
-
-    story.append(Paragraph("5.1 Architecture Cloud", styles['SubSection']))
-
-    story.append(Paragraph(
-        "Le syst&egrave;me est d&eacute;ploy&eacute; sur une architecture cloud enti&egrave;rement serverless et gratuite :",
-        styles['BodyText2']
-    ))
-
-    arch_table = make_table(
-        ["Composant", "Service", "Avantage"],
-        [
-            ["Frontend + API", "Vercel (Serverless Functions)", "CDN global, HTTPS automatique, auto-scaling, d&eacute;ploiement continu via Git"],
-            ["Base de donn&eacute;es", "Neon PostgreSQL (Serverless)", "Connection pooling (PgBouncer), scale-to-zero, 0.5 Go gratuit"],
-            ["ORM", "Prisma 6 avec directUrl", "URL pool&eacute;e pour les requ&ecirc;tes, URL directe pour les migrations"],
-        ],
-        col_widths=[3*cm, 4.5*cm, 7.5*cm]
+    sc_tbl = make_table(
+        ["#", "Attaque", "Défense"],
+        [[str(i + 1),
+          f"<b>{title}</b><br/>{attack}",
+          defense]
+         for i, (title, attack, defense) in enumerate(scenarios)],
+        col_widths=[0.8 * cm, 8 * cm, 6.7 * cm],
     )
-    story.append(arch_table)
-    story.append(Paragraph("Tableau 8 : Architecture cloud", styles['Caption']))
+    s.append(sc_tbl)
+    s.append(Paragraph("Tableau 7 — Six scénarios de fraude testés",
+                       ss["Caption"]))
 
-    story.append(Paragraph("5.2 Estimation de la charge", styles['SubSection']))
+    s.append(PageBreak())
 
-    story.append(Paragraph(
-        "Pour dimensionner le syst&egrave;me, estimons la charge pour l'ensemble de l'UEMF :",
-        styles['BodyText2']
-    ))
+    # ════════════════════════════════════════════════════════════════════════
+    # § 9 — STACK
+    # ════════════════════════════════════════════════════════════════════════
+    s.append(Paragraph("§ 9 — Stack technique", ss["H1"]))
+    s.append(hr())
 
-    load_table = make_table(
-        ["Param&egrave;tre", "Valeur estim&eacute;e", "Impact"],
+    s.append(Paragraph(
+        "Tous les composants sont open-source. Le déploiement et la base de "
+        "données sont sur des offres gratuites&nbsp;: coût d'exploitation nul. "
+        "Chaque outil est choisi pour une raison précise — pas par effet de "
+        "mode.",
+        ss["uBody"]))
+
+    stack_tbl = make_table(
+        ["Composant", "Outil", "Pourquoi ce choix"],
         [
-            ["Nombre d'&eacute;tudiants", "~2 000", "2 000 comptes utilisateurs"],
-            ["Nombre de professeurs", "~150", "150 comptes, sessions simultan&eacute;es"],
-            ["S&eacute;ances/jour (pic)", "~80", "80 sessions actives potentielles"],
-            ["Scans simultan&eacute;s (pic)", "~60/s&eacute;ance", "Burst de 60 requ&ecirc;tes POST en ~30s"],
-            ["Polling QR (pic)", "~160 req/s", "80 profs &times; 1 req/2s = 40 req/s + marge"],
-            ["Stockage/an", "~200 Mo", "PostgreSQL, optimis&eacute; avec indexes"],
+            ["Framework", "Next.js 16 (App Router)",
+             "Réunit frontend et backend dans un seul projet. Déploiement "
+             "Vercel sans configuration."],
+            ["UI", "React 19",
+             "Bibliothèque standard pour interfaces à base de composants. "
+             "Mise à jour ciblée de l'écran sans rechargement."],
+            ["Langage", "TypeScript",
+             "Typage statique&nbsp;: les erreurs de structure sont attrapées "
+             "à l'écriture, pas en production."],
+            ["Base de données", "PostgreSQL (Neon)",
+             "SGBD relationnel ACID, hébergé serverless. Supporte UNIQUE et "
+             "index B-tree pour lookups O(log n)."],
+            ["ORM", "Prisma 6",
+             "Schéma déclaratif unique, migrations versionnées, requêtes "
+             "type-safe&nbsp;: élimine les SQL injection au niveau code."],
+            ["Auth", "NextAuth + bcrypt",
+             "Sessions JWT signées (24 h), mots de passe bcrypt (coût 10), "
+             "comparaison à temps constant."],
+            ["Validation", "Zod",
+             "Schémas runtime de chaque endpoint. Rejet 400 avant toute "
+             "requête SQL."],
+            ["QR / Scanner", "qrcode + jsQR",
+             "Génération canvas côté prof, décodage temps réel via la caméra. "
+             "Tout dans le navigateur."],
+            ["UI / Styles", "Tailwind v4 + Radix UI",
+             "Design system cohérent, primitives accessibles (a11y), "
+             "responsive desktop / mobile."],
+            ["Déploiement", "Vercel + GitHub",
+             "Build et déploiement automatiques à chaque push. HTTPS "
+             "automatique (Let's Encrypt)."],
         ],
-        col_widths=[4*cm, 3.5*cm, 7.5*cm]
+        col_widths=[2.8 * cm, 4 * cm, 8.7 * cm],
     )
-    story.append(load_table)
-    story.append(Paragraph("Tableau 9 : Estimation de la charge", styles['Caption']))
+    s.append(stack_tbl)
+    s.append(Paragraph("Tableau 8 — Choix techniques justifiés",
+                       ss["Caption"]))
 
-    story.append(Paragraph("5.3 Comparaison temporelle", styles['SubSection']))
+    s.append(PageBreak())
 
-    time_table = make_table(
-        ["M&eacute;trique", "Syst&egrave;me actuel", "UEMF Pr&eacute;sence", "Am&eacute;lioration"],
+    # ════════════════════════════════════════════════════════════════════════
+    # § 10 — ARCHITECTURE
+    # ════════════════════════════════════════════════════════════════════════
+    s.append(Paragraph("§ 10 — Architecture et flux de données", ss["H1"]))
+    s.append(hr())
+
+    s.append(Paragraph(
+        "Le système suit l'architecture classique <b>client / serveur</b>. "
+        "Le navigateur affiche l'interface (le client) et envoie des requêtes "
+        "au serveur Next.js, qui interroge la base PostgreSQL hébergée chez "
+        "Neon. Tout passe par HTTPS.",
+        ss["uBody"]))
+
+    s.append(Paragraph("10.1&nbsp;&nbsp;Vue d'ensemble du système", ss["H2"]))
+    s.append(code_block(
+        "+--------------------------+         +--------------------------+\n"
+        "|  Navigateur prof         |         |  Smartphone étudiant     |\n"
+        "|  (Chrome, Firefox…)      |         |  (iOS, Android)          |\n"
+        "|  · React UI              |         |  · React UI + caméra     |\n"
+        "|  · canvas QR             |         |  · jsQR + GPS            |\n"
+        "+----------+---------------+         +------------+-------------+\n"
+        "           |                                      |\n"
+        "           |  HTTPS / JSON                        |  HTTPS / JSON\n"
+        "           v                                      v\n"
+        "   +----------------------------------------------------------+\n"
+        "   |             Vercel — Next.js 16 (App Router)              |\n"
+        "   |                                                          |\n"
+        "   |   Pages (RSC)   ·   API routes   ·   Middleware (auth)   |\n"
+        "   |                            |                             |\n"
+        "   |                            |  Prisma Client (TS)         |\n"
+        "   +----------------------------+-----------------------------+\n"
+        "                                |  SQL via TCP/TLS\n"
+        "                                v\n"
+        "                       +------------------+\n"
+        "                       |  PostgreSQL      |\n"
+        "                       |  (Neon Cloud)    |\n"
+        "                       +------------------+"
+    ))
+
+    s.append(Paragraph("10.2&nbsp;&nbsp;Anatomie d'une requête HTTP type", ss["H2"]))
+    steps = [
+        "L'étudiant scanne. Son navigateur compose un <font face='Courier' "
+        "size='8'>POST /api/sessions/{id}/attendance</font> avec un corps JSON.",
+        "La requête arrive à Vercel via HTTPS. Vercel sert la route Next.js "
+        "correspondante.",
+        "Le <b>middleware</b> NextAuth vérifie le cookie de session signé. "
+        "Si invalide ou expiré → 401.",
+        "Le code de la route appelle <font face='Courier' size='8'>"
+        "requireApiRole([\"STUDENT\"])</font> qui lit le JWT et vérifie le rôle.",
+        "Zod valide le corps&nbsp;: <font face='Courier' size='8'>token</font> "
+        "string, <font face='Courier' size='8'>timestamp</font> entier, "
+        "lat/lon optionnels.",
+        "Prisma exécute des SELECT/UPDATE en SQL, sur Neon, via TLS.",
+        "La réponse JSON est renvoyée — le navigateur la lit et met à jour "
+        "l'interface.",
+    ]
+    for i, st in enumerate(steps, 1):
+        s.append(Paragraph(f"<b>{i}.</b>&nbsp;&nbsp;{st}", ss["uBody"]))
+
+    s.append(definition(
+        "DÉFINITION — JWT (JSON Web Token)",
+        "Format standard de token d'authentification. Un JWT contient trois "
+        "parties séparées par des points&nbsp;: <font face='Courier' size='8'>"
+        "en-tête.payload.signature</font>. Le serveur signe avec un "
+        "secret&nbsp;; le navigateur le renvoie à chaque requête dans un "
+        "cookie. Le serveur vérifie la signature avant de faire confiance au "
+        "contenu."))
+
+    s.append(PageBreak())
+
+    # ════════════════════════════════════════════════════════════════════════
+    # § 11 — MODÈLE DE DONNÉES
+    # ════════════════════════════════════════════════════════════════════════
+    s.append(Paragraph("§ 11 — Modèle de données", ss["H1"]))
+    s.append(hr())
+
+    s.append(Paragraph(
+        "Le schéma est conçu pour refléter l'organisation pédagogique réelle "
+        "de l'EIDIA. Dix entités principales, reliées par des clés "
+        "étrangères&nbsp;; tout est normalisé (pas de duplication "
+        "d'information). Le fichier source est "
+        "<font face='Courier' size='8'>prisma/schema.prisma</font>.",
+        ss["uBody"]))
+
+    entities_tbl = make_table(
+        ["Entité", "Rôle", "Champs clés"],
         [
-            ["Temps d'appel (30 &eacute;tudiants)", "~8 min", "~20 sec", "96% de r&eacute;duction"],
-            ["Temps d'appel (60 &eacute;tudiants)", "~15 min", "~25 sec", "97% de r&eacute;duction"],
-            ["Erreurs de saisie", "2-5%", "~0%", "Quasi-&eacute;limination"],
-            ["D&eacute;tection de fraude", "0%", ">95%", "De 0 &agrave; quasi-total"],
-            ["G&eacute;n&eacute;ration rapport", "30+ min (manuel)", "1 clic (CSV)", "99% de r&eacute;duction"],
+            ["User",
+             "Compte utilisateur générique (admin, prof, étudiant).",
+             "id, email unique, passwordHash, role, firstName, lastName"],
+            ["Department",
+             "Faculté ou école (EIDIA).",
+             "name, code unique"],
+            ["Program",
+             "Filière d'études (GI, IASD).",
+             "name, code unique, departmentId"],
+            ["Group",
+             "Classe physique (GI-S5-A, GI-S5-B…).",
+             "name, programId, semester"],
+            ["Professor",
+             "Profil enseignant (1-1 avec User).",
+             "userId, employeeId, departmentId"],
+            ["Student",
+             "Profil étudiant (1-1 avec User).",
+             "userId, studentId unique, enrollmentYear"],
+            ["Room",
+             "Salle de cours géolocalisée.",
+             "latitude, longitude, radius, capacity"],
+            ["Course",
+             "Cours d'un semestre, par filière, par prof.",
+             "code unique, professorId, programId"],
+            ["Session",
+             "Séance planifiée d'un cours.",
+             "courseId, roomId, date, status, qrSecret, qrRotationSec"],
+            ["Attendance",
+             "L'enregistrement de présence d'un étudiant à une séance.",
+             "UNIQUE(sessionId, studentId), status, scannedAt, verified, "
+             "lat/lon, deviceHash"],
         ],
-        col_widths=[4.5*cm, 3.5*cm, 3.5*cm, 3.5*cm]
+        col_widths=[2.5 * cm, 5.5 * cm, 7.5 * cm],
     )
-    story.append(time_table)
-    story.append(Paragraph("Tableau 10 : Gains de performance", styles['Caption']))
+    s.append(entities_tbl)
+    s.append(Paragraph("Tableau 9 — Les dix entités du modèle",
+                       ss["Caption"]))
 
-    story.append(Paragraph(
-        "En termes de recherche op&eacute;rationnelle, le syst&egrave;me atteint une valeur de "
-        "Z<sub>3</sub> = 1 - (25/600) = <b>0.958</b>, soit une efficacit&eacute; temporelle de 95.8%.",
-        styles['BodyText2']
+    s.append(Paragraph("11.1&nbsp;&nbsp;Les relations", ss["H2"]))
+    s.append(code_block(
+        "Department  --1:N->  Program   --1:N->  Group  --N:N->  Student\n"
+        "                          |                                  |\n"
+        "                          +---1:N->  Course  --N:N->  Group  |\n"
+        "                                        |                    |\n"
+        "                                        +---1:N->  Session   |\n"
+        "                                                       |     |\n"
+        "                                                       +-1:N-> Attendance"
     ))
 
-    story.append(PageBreak())
+    s.append(Paragraph(
+        "Une seconde lecture utile&nbsp;: les <b>contraintes d'intégrité</b> "
+        "(clés étrangères + UNIQUE) sont déclarées une fois pour toutes dans "
+        "le schéma. Toute tentative d'écriture violant l'intégrité est "
+        "rejetée par PostgreSQL <i>avant</i> d'atteindre la moindre ligne de "
+        "code applicatif.",
+        ss["uBody"]))
 
-    # ═══════════════════════════════════════════════════════════
-    # 6. USER INTERFACES
-    # ═══════════════════════════════════════════════════════════
-    story.append(Paragraph("6. Interfaces Utilisateur (3 R&ocirc;les)", styles['SectionTitle']))
-    story.append(hr())
+    s.append(PageBreak())
 
-    story.append(Paragraph(
-        "Le syst&egrave;me impl&eacute;mente un <b>contr&ocirc;le d'acc&egrave;s bas&eacute; sur les r&ocirc;les</b> (RBAC) "
-        "avec 3 r&ocirc;les distincts, chacun ayant un tableau de bord et des fonctionnalit&eacute;s d&eacute;di&eacute;es. "
-        "L'interface est enti&egrave;rement en fran&ccedil;ais et responsive (adapt&eacute;e aux mobiles et ordinateurs).",
-        styles['BodyText2']
-    ))
+    # ════════════════════════════════════════════════════════════════════════
+    # § 12 — SÉCURITÉ API
+    # ════════════════════════════════════════════════════════════════════════
+    s.append(Paragraph("§ 12 — Sécurité API par rôle", ss["H1"]))
+    s.append(hr())
 
-    story.append(Paragraph("6.1 R&ocirc;le Administrateur", styles['SubSection']))
-    roles_admin = [
-        "<b>Tableau de bord</b> : Vue d'ensemble avec compteurs (nombre d'&eacute;tudiants, professeurs, cours, s&eacute;ances actives)",
-        "<b>Gestion CRUD compl&egrave;te</b> de 7 entit&eacute;s : D&eacute;partements, Fili&egrave;res, Groupes, Salles, Professeurs, &Eacute;tudiants, Cours",
-        "<b>Cr&eacute;ation de salles</b> avec coordonn&eacute;es GPS (latitude, longitude, rayon) pr&eacute;-remplies aux coordonn&eacute;es du campus UEMF",
-        "<b>Dropdowns dynamiques</b> : le choix d'une fili&egrave;re filtre les groupes disponibles lors de la cr&eacute;ation d'un cours",
-        "<b>Gestion des comptes</b> : cr&eacute;ation de comptes professeurs et &eacute;tudiants avec assignation aux d&eacute;partements et groupes",
-    ]
-    for r in roles_admin:
-        story.append(bullet(r))
+    s.append(Paragraph(
+        "Chaque endpoint API exige un rôle minimum et, quand pertinent, une "
+        "vérification de propriété (le prof ne peut agir que sur ses "
+        "propres séances). Le helper <font face='Courier' size='8'>"
+        "requireApiRole</font> est appelé en première ligne de chaque route "
+        "et renvoie 401 / 403 si la condition n'est pas remplie.",
+        ss["uBody"]))
 
-    story.append(Paragraph("6.2 R&ocirc;le Professeur", styles['SubSection']))
-    roles_prof = [
-        "<b>Liste des cours</b> : vue de tous les cours assign&eacute;s avec nombre d'heures et groupes",
-        "<b>Cr&eacute;ation de s&eacute;ances</b> : choix du cours, de la salle, date et heures de d&eacute;but/fin",
-        "<b>Activation de s&eacute;ance</b> : g&eacute;n&egrave;re le secret QR et pr&eacute;-cr&eacute;e les enregistrements ABSENT pour tous les &eacute;tudiants du cours",
-        "<b>Affichage QR en direct</b> : plein &eacute;cran avec anneau de compte &agrave; rebours SVG, compteur de pr&eacute;sences en temps r&eacute;el, indicateur de connexion",
-        "<b>Gestion manuelle</b> : le professeur peut changer le statut de tout &eacute;tudiant (Pr&eacute;sent, Absent, En retard, Excus&eacute;)",
-        "<b>Rapports et exports</b> : filtrage par cours et s&eacute;ance, statistiques de pr&eacute;sence, export CSV avec BOM UTF-8 pour compatibilit&eacute; Excel",
-    ]
-    for r in roles_prof:
-        story.append(bullet(r))
+    s.append(definition(
+        "AUTHENTIFICATION VS. AUTORISATION",
+        "<b>Authentification</b> = prouver qui on est. <b>Autorisation</b> = "
+        "prouver qu'on a le droit de faire telle action. Deux niveaux "
+        "distincts, à vérifier indépendamment."))
 
-    story.append(Paragraph("6.3 R&ocirc;le &Eacute;tudiant", styles['SubSection']))
-    roles_student = [
-        "<b>Scanner QR</b> : cam&eacute;ra arri&egrave;re avec cadre de scan anim&eacute;, d&eacute;codage via jsQR en temps r&eacute;el. <b>Important</b> : le scan doit &ecirc;tre fait depuis l'application web, pas depuis l'app cam&eacute;ra du t&eacute;l&eacute;phone",
-        "<b>G&eacute;olocalisation automatique</b> : r&eacute;cup&eacute;ration GPS haute pr&eacute;cision lors du scan (permission demand&eacute;e au navigateur)",
-        "<b>Retour visuel imm&eacute;diat</b> : &eacute;cran vert (pr&eacute;sent), orange (en retard), bleu (d&eacute;j&agrave; enregistr&eacute;), rouge (erreur)",
-        "<b>Historique</b> : taux de pr&eacute;sence global, d&eacute;tail par cours avec barres de progression, liste chronologique",
-    ]
-    for r in roles_student:
-        story.append(bullet(r))
-
-    story.append(PageBreak())
-
-    # ═══════════════════════════════════════════════════════════
-    # 7. DEPLOYMENT & USAGE GUIDE
-    # ═══════════════════════════════════════════════════════════
-    story.append(Paragraph("7. Guide de D&eacute;ploiement et d'Utilisation", styles['SectionTitle']))
-    story.append(hr())
-
-    story.append(Paragraph("7.1 Pr&eacute;-requis", styles['SubSection']))
-    story.append(bullet("Node.js 18+ install&eacute;"))
-    story.append(bullet("Git install&eacute;"))
-    story.append(bullet("Un navigateur moderne (Chrome, Firefox, Safari)"))
-    story.append(bullet("Un compte GitHub (pour le d&eacute;ploiement)"))
-    story.append(bullet("Un compte Vercel gratuit (vercel.com)"))
-    story.append(bullet("Un compte Neon gratuit (neon.tech) pour la base de donn&eacute;es"))
-
-    story.append(Paragraph("7.2 Installation Locale (D&eacute;veloppement)", styles['SubSection']))
-
-    story.append(Paragraph(
-        "# 1. Cloner le d&eacute;p&ocirc;t<br/>"
-        "git clone https://github.com/MouhssineElBoumshouli/Student-Attendance-System.git<br/>"
-        "cd Student-Attendance-System<br/><br/>"
-        "# 2. Installer les d&eacute;pendances<br/>"
-        "npm install<br/><br/>"
-        "# 3. Configurer l'environnement<br/>"
-        "# Cr&eacute;er un fichier .env avec :<br/>"
-        "#   DATABASE_URL=\"postgresql://...\" (URL de votre base Neon, avec -pooler)<br/>"
-        "#   DIRECT_URL=\"postgresql://...\" (m&ecirc;me URL sans -pooler)<br/>"
-        "#   NEXTAUTH_SECRET=\"votre-secret-al&eacute;atoire\"<br/><br/>"
-        "# 4. Initialiser la base de donn&eacute;es<br/>"
-        "npx prisma db push<br/>"
-        "npx prisma db seed<br/><br/>"
-        "# 5. Lancer le serveur de d&eacute;veloppement<br/>"
-        "npm run dev<br/><br/>"
-        "# L'application est accessible sur http://localhost:3000",
-        styles['CodeBlock']
-    ))
-
-    story.append(Paragraph("7.3 D&eacute;ploiement Cloud (Vercel + Neon)", styles['SubSection']))
-
-    story.append(Paragraph(
-        "Le d&eacute;ploiement en production utilise Vercel pour le frontend/API et Neon pour la base de donn&eacute;es. "
-        "Les deux services sont gratuits pour un usage raisonnable.",
-        styles['BodyText2']
-    ))
-
-    story.append(Paragraph("&Eacute;tape 1 : Cr&eacute;er la base de donn&eacute;es Neon", styles['SubSubSection']))
-    story.append(bullet("Aller sur <b>neon.tech</b> et cr&eacute;er un compte"))
-    story.append(bullet("Cr&eacute;er un nouveau projet (r&eacute;gion : Europe West)"))
-    story.append(bullet("Copier les deux URLs de connexion : <b>pooled</b> (avec -pooler) et <b>direct</b> (sans -pooler)"))
-
-    story.append(Paragraph("&Eacute;tape 2 : D&eacute;ployer sur Vercel", styles['SubSubSection']))
-    story.append(bullet("Aller sur <b>vercel.com</b> et se connecter avec GitHub"))
-    story.append(bullet("Importer le d&eacute;p&ocirc;t GitHub <i>Student-Attendance-System</i>"))
-    story.append(bullet("Ajouter 3 variables d'environnement : DATABASE_URL, DIRECT_URL, NEXTAUTH_SECRET"))
-    story.append(bullet("Cliquer sur <b>Deploy</b> &mdash; Vercel d&eacute;tecte automatiquement Next.js"))
-
-    story.append(Paragraph("&Eacute;tape 3 : Initialiser la base de donn&eacute;es", styles['SubSubSection']))
-    story.append(bullet("Localement, configurer le .env avec les URLs Neon"))
-    story.append(bullet("Ex&eacute;cuter <b>npx prisma db push</b> pour cr&eacute;er les tables"))
-    story.append(bullet("Ex&eacute;cuter <b>npx prisma db seed</b> pour ins&eacute;rer les donn&eacute;es de test"))
-
-    story.append(Paragraph(
-        "<b>R&eacute;sultat</b> : l'application est accessible via l'URL Vercel (ex: https://votre-app.vercel.app) "
-        "depuis n'importe quel appareil connect&eacute; &agrave; Internet.",
-        styles['BodyText2']
-    ))
-
-    story.append(Paragraph("7.4 Comptes de test (apr&egrave;s seed)", styles['SubSection']))
-
-    accounts_table = make_table(
-        ["R&ocirc;le", "Email", "Mot de passe"],
+    auth_tbl = make_table(
+        ["Endpoint", "Rôle requis", "Vérifications supplémentaires"],
         [
-            ["Administrateur", "admin@ueuromed.org", "password123"],
-            ["Professeur (RO)", "ahmed.benali@ueuromed.org", "password123"],
-            ["Professeur (ML)", "fatima.zahrae@ueuromed.org", "password123"],
-            ["Professeur (Droit)", "karim.idrissi@ueuromed.org", "password123"],
-            ["&Eacute;tudiant", "mouhssine.elhassouni@ueuromed.org", "password123"],
-            ["&Eacute;tudiant", "yassine.amrani@ueuromed.org", "password123"],
+            ["POST /api/sessions", "PROFESSOR, ADMIN",
+             "le prof ne peut créer que pour lui-même"],
+            ["POST /api/sessions/[id]/activate", "PROFESSOR, ADMIN",
+             "séance doit lui appartenir"],
+            ["POST /api/sessions/[id]/deactivate", "PROFESSOR, ADMIN",
+             "séance doit lui appartenir"],
+            ["GET /api/sessions/[id]/qr-token", "PROFESSOR, ADMIN",
+             "séance lui appartient — empêche un étudiant de lire le token"],
+            ["POST /api/sessions/[id]/attendance", "STUDENT",
+             "studentId lu depuis le JWT, jamais du body"],
+            ["PATCH /api/sessions/[id]/attendance", "PROFESSOR, ADMIN",
+             "vérifie que la présence appartient à cette séance"],
+            ["POST/DELETE /api/departments, programs, …", "ADMIN",
+             "réservé aux administrateurs"],
         ],
-        col_widths=[3*cm, 6.5*cm, 3.5*cm]
+        col_widths=[6 * cm, 3.5 * cm, 6 * cm],
     )
-    story.append(accounts_table)
-    story.append(Paragraph("Tableau 11 : Comptes de test (tous les mots de passe sont password123)", styles['Caption']))
+    s.append(auth_tbl)
+    s.append(Paragraph("Tableau 10 — Tableau d'autorisation des endpoints",
+                       ss["Caption"]))
 
-    story.append(Paragraph("7.5 Guide d'Utilisation Complet", styles['SubSection']))
+    s.append(Paragraph("12.1&nbsp;&nbsp;Mesures complémentaires", ss["H2"]))
+    s.append(bullet(
+        "<b>Hash bcrypt des mots de passe</b> (coût 10). bcrypt est "
+        "volontairement coûteux à calculer."))
+    s.append(bullet(
+        "<b>Messages de login non-distinctifs.</b> « Email ou mot de "
+        "passe incorrect » dans tous les cas."))
+    s.append(bullet(
+        "<b>bcrypt exécuté même si l'email n'existe pas</b> (contre un hash "
+        "factice) — supprime la possibilité de distinguer les cas par "
+        "<i>timing oracle</i>."))
+    s.append(bullet(
+        "<b>Validation Zod stricte.</b> Toute requête malformée est rejetée "
+        "avec un 400 avant d'atteindre la base."))
+    s.append(bullet(
+        "<b>HTTPS partout</b> — fourni gratuitement par Vercel."))
 
-    story.append(Paragraph("A. Configuration initiale (Administrateur)", styles['SubSubSection']))
-    flow_admin = [
-        "Se connecter avec <b>admin@ueuromed.org</b> / password123",
-        "Cr&eacute;er les <b>d&eacute;partements</b> (ex: EIDIA, FSJP) depuis le menu lat&eacute;ral",
-        "Cr&eacute;er les <b>fili&egrave;res</b> (programmes) rattach&eacute;es aux d&eacute;partements",
-        "Cr&eacute;er les <b>groupes</b> d'&eacute;tudiants rattach&eacute;s aux fili&egrave;res",
-        "Cr&eacute;er les <b>salles</b> avec leurs coordonn&eacute;es GPS (latitude, longitude, rayon en m&egrave;tres)",
-        "Cr&eacute;er les <b>comptes professeurs</b> (email, mot de passe, d&eacute;partement)",
-        "Cr&eacute;er les <b>comptes &eacute;tudiants</b> (email, mot de passe, groupe(s))",
-        "Cr&eacute;er les <b>cours</b> en assignant un professeur, une fili&egrave;re, et les groupes concern&eacute;s",
-    ]
-    for i, step in enumerate(flow_admin, 1):
-        story.append(bullet(f"<b>{i}.</b> {step}"))
+    s.append(PageBreak())
 
-    story.append(Paragraph("B. Prise de pr&eacute;sence (Professeur)", styles['SubSubSection']))
-    flow_prof = [
-        "Se connecter avec le compte professeur",
-        "Aller dans <b>S&eacute;ances</b> &rarr; <b>Nouvelle s&eacute;ance</b>",
-        "Choisir le <b>cours</b>, la <b>salle</b>, la <b>date</b>, l'<b>heure de d&eacute;but</b> et l'<b>heure de fin</b>",
-        "Cliquer sur <b>Cr&eacute;er la s&eacute;ance</b>",
-        "Sur la page de la s&eacute;ance, cliquer sur <b>Activer</b> (g&eacute;n&egrave;re le secret QR et cr&eacute;e les enregistrements ABSENT)",
-        "Cliquer sur <b>Afficher le QR Code</b> pour ouvrir la page plein &eacute;cran",
-        "Projeter l'&eacute;cran pour que les &eacute;tudiants puissent scanner le QR code",
-        "Le <b>compteur de pr&eacute;sences</b> se met &agrave; jour en temps r&eacute;el (0 / 12 pr&eacute;sents &rarr; 5 / 12 &rarr; ...)",
-        "Une fois tous les &eacute;tudiants scann&eacute;s, retourner sur la page de la s&eacute;ance et cliquer <b>Terminer</b>",
-        "Ajuster manuellement les statuts si n&eacute;cessaire (cliquer sur le statut d'un &eacute;tudiant pour le changer)",
-    ]
-    for i, step in enumerate(flow_prof, 1):
-        story.append(bullet(f"<b>{i}.</b> {step}"))
+    # ════════════════════════════════════════════════════════════════════════
+    # § 13 — CYCLE DE VIE
+    # ════════════════════════════════════════════════════════════════════════
+    s.append(Paragraph("§ 13 — Cycle de vie d'une séance", ss["H1"]))
+    s.append(hr())
 
-    story.append(Paragraph("C. Scanner sa pr&eacute;sence (&Eacute;tudiant)", styles['SubSubSection']))
-    flow_student = [
-        "Se connecter avec le compte &eacute;tudiant <b>depuis le navigateur du t&eacute;l&eacute;phone</b> (Chrome recommand&eacute;)",
-        "Aller dans <b>Scanner QR</b> depuis le menu",
-        "Cliquer sur <b>Ouvrir la cam&eacute;ra</b> et autoriser l'acc&egrave;s &agrave; la cam&eacute;ra et au GPS",
-        "Pointer la cam&eacute;ra vers le QR code affich&eacute; par le professeur",
-        "Le scan est <b>automatique</b> : d&egrave;s que le QR est d&eacute;tect&eacute;, la pr&eacute;sence est envoy&eacute;e",
-        "Un &eacute;cran de confirmation appara&icirc;t : <b>vert</b> (pr&eacute;sent), <b>orange</b> (en retard), <b>rouge</b> (erreur)",
-        "<b>Important</b> : ne PAS scanner avec l'application cam&eacute;ra native du t&eacute;l&eacute;phone ! Utiliser uniquement le scanner int&eacute;gr&eacute; &agrave; l'application web",
-    ]
-    for i, step in enumerate(flow_student, 1):
-        story.append(bullet(f"<b>{i}.</b> {step}"))
+    s.append(Paragraph(
+        "Une séance traverse trois états&nbsp;: <b>SCHEDULED</b> (planifiée, "
+        "pas encore commencée), <b>ACTIVE</b> (en cours, QR rotatif diffusé), "
+        "<b>COMPLETED</b> (terminée, QR invalidé, rapport disponible). Les "
+        "transitions sont déclenchées par le professeur.",
+        ss["uBody"]))
 
-    story.append(PageBreak())
-
-    # ═══════════════════════════════════════════════════════════
-    # 8. MAINTENANCE & MODIFICATION GUIDE
-    # ═══════════════════════════════════════════════════════════
-    story.append(Paragraph("8. Guide de Maintenance et Modification", styles['SectionTitle']))
-    story.append(hr())
-
-    story.append(Paragraph("8.1 Structure du Projet", styles['SubSection']))
-
-    story.append(Paragraph(
-        "Le projet suit la structure standard de Next.js 16 avec App Router :",
-        styles['BodyText2']
+    s.append(code_block(
+        "SCHEDULED  -- le prof clique « Activer »  ->  ACTIVE\n"
+        "    |                                          |\n"
+        "    |  • tirage secretⱼ (32 octets aléatoires)  |\n"
+        "    |  • createMany ABSENT pour tous les        |\n"
+        "    |    étudiants des groupes du cours         |\n"
+        "    |  • skipDuplicates → préserve les scans    |\n"
+        "    |    existants en cas de réactivation       |\n"
+        "    |                                           v\n"
+        "    |                              QR rotatif (Δ = 10 s)\n"
+        "    |                                           v\n"
+        "    |                          les étudiants scannent\n"
+        "    |                                           v\n"
+        "    |                  le prof clique « Terminer »\n"
+        "    |                                           v\n"
+        "    v                              COMPLETED\n"
+        "(jamais activée)                   |\n"
+        "                                   | • qrSecret ← NULL\n"
+        "                                   | • Rapport CSV exportable"
     ))
 
-    struct_table = make_table(
-        ["Dossier / Fichier", "Description"],
+    s.append(Paragraph("13.1&nbsp;&nbsp;SCHEDULED → ACTIVE (activation)", ss["H2"]))
+    s.append(Paragraph(
+        "Quand le professeur clique « Activer », le serveur&nbsp;:", ss["uBody"]))
+    s.append(bullet(
+        "Vérifie l'authentification et l'autorisation (rôle PROFESSOR, "
+        "propriétaire de la séance)."))
+    s.append(bullet(
+        "Génère <i>secret<sub>j</sub></i> via <font face='Courier' size='8'>"
+        "crypto.randomBytes(32)</font> — 256 bits d'entropie cryptographique."))
+    s.append(bullet(
+        "Exécute une transaction&nbsp;: <font face='Courier' size='8'>"
+        "UPDATE session SET status='ACTIVE', qrSecret=…</font> + "
+        "<font face='Courier' size='8'>INSERT INTO attendances</font> en "
+        "masse, un ABSENT par étudiant inscrit aux groupes du cours."))
+    s.append(bullet(
+        "Le <font face='Courier' size='8'>skipDuplicates</font> garantit "
+        "qu'une réactivation accidentelle ne supprime pas les présences "
+        "déjà scannées."))
+
+    s.append(Paragraph("13.2&nbsp;&nbsp;ACTIVE → COMPLETED (terminaison)", ss["H2"]))
+    s.append(Paragraph(
+        "Quand le professeur clique « Terminer »&nbsp;:", ss["uBody"]))
+    s.append(bullet("Le serveur passe <font face='Courier' size='8'>status</font> à COMPLETED."))
+    s.append(bullet(
+        "Surtout&nbsp;: il met <font face='Courier' size='8'>qrSecret</font> "
+        "à NULL. Tous les tokens déjà émis deviennent invalidables — il n'y "
+        "a plus de référence cryptographique avec laquelle les vérifier."))
+    s.append(bullet(
+        "Le rapport devient disponible dans la section « Rapports »&nbsp;: "
+        "liste filtrable, statistiques par cours, export CSV."))
+
+    s.append(example(
+        "POURQUOI EFFACER LE SECRET ?",
+        "Le secret est <i>la seule donnée</i> qui permet de valider un "
+        "token QR. Tant qu'il existe en base, un attaquant qui réussirait "
+        "à le copier pourrait théoriquement valider des tokens. En "
+        "l'effaçant à la fermeture, on minimise la fenêtre d'attaque&nbsp;: "
+        "<b>aucun secret survivant n'est exploitable</b> une fois la séance "
+        "close."))
+
+    s.append(PageBreak())
+
+    # ════════════════════════════════════════════════════════════════════════
+    # § 14 — BILAN
+    # ════════════════════════════════════════════════════════════════════════
+    s.append(Paragraph("§ 14 — Bilan et limites assumées", ss["H1"]))
+    s.append(hr())
+
+    s.append(Paragraph(
+        "Ce projet illustre comment un problème universitaire concret se "
+        "laisse <b>entièrement formaliser dans le langage de la Recherche "
+        "Opérationnelle</b> — variables binaires de décision, ensembles, "
+        "fonction objectif multi-critère pondérée, contraintes mathéma"
+        "tiquement explicites — puis se transforme en application web "
+        "complète, déployée et utilisable.",
+        ss["uBody"]))
+
+    s.append(Paragraph("14.1&nbsp;&nbsp;Indicateurs clés", ss["H2"]))
+    kpi_tbl = make_table(
+        ["Indicateur", "Valeur"],
         [
-            ["prisma/schema.prisma", "Sch&eacute;ma de la base de donn&eacute;es (13 mod&egrave;les). Modifier ici pour ajouter des champs ou tables"],
-            ["prisma/seed.ts", "Donn&eacute;es de test initiales. Modifier pour ajouter/changer les comptes de d&eacute;mo"],
-            ["src/app/api/", "Routes API (REST). Chaque dossier = un endpoint. Ex: api/sessions/route.ts"],
-            ["src/app/(dashboard)/", "Pages de l'interface. Organis&eacute;es par r&ocirc;le : admin/, professor/, student/"],
-            ["src/lib/qr/", "Algorithme QR : generate.ts (g&eacute;n&eacute;ration HMAC), validate.ts (validation), constants.ts (param&egrave;tres)"],
-            ["src/lib/geo/", "G&eacute;olocalisation : validate.ts (formule de Haversine + geofencing)"],
-            ["src/lib/auth.ts", "Configuration NextAuth (providers, callbacks JWT, dur&eacute;e de session)"],
-            ["src/lib/validations.ts", "Sch&eacute;mas Zod pour la validation des entr&eacute;es API"],
-            ["src/components/", "Composants React r&eacute;utilisables (boutons, cartes, sidebar, etc.)"],
-            ["src/middleware.ts", "Protection des routes par r&ocirc;le (admin, professor, student)"],
-            [".env", "Variables d'environnement (DATABASE_URL, DIRECT_URL, NEXTAUTH_SECRET)"],
+            ["Gain de temps par séance (Z₃)", "~96 %"],
+            ["Fenêtre de validité d'un token QR", "10 s"],
+            ["Couches anti-fraude indépendantes", "4"],
+            ["Étudiants EIDIA dans la base", "201"],
+            ["Groupes (4 GI + 4 IASD)", "8"],
+            ["Cours actifs", "4 (RO, RSE, MFA, GIN)"],
+            ["Coût d'exploitation annuel", "0 €"],
         ],
-        col_widths=[4.5*cm, 10.5*cm]
+        col_widths=[10 * cm, 5.5 * cm],
     )
-    story.append(struct_table)
-    story.append(Paragraph("Tableau 12 : Structure du projet", styles['Caption']))
+    s.append(kpi_tbl)
+    s.append(Paragraph("Tableau 11 — Indicateurs clés", ss["Caption"]))
 
-    story.append(Paragraph("8.2 Ajouter / Modifier des Entit&eacute;s", styles['SubSection']))
-
-    story.append(Paragraph("Ajouter un nouveau champ &agrave; un mod&egrave;le existant", styles['SubSubSection']))
-    story.append(Paragraph(
-        "Exemple : ajouter un champ <i>phoneNumber</i> au mod&egrave;le Student :",
-        styles['BodyText2']
-    ))
-    story.append(Paragraph(
-        "# 1. Modifier prisma/schema.prisma<br/>"
-        "model Student {<br/>"
-        "&nbsp;&nbsp;...<br/>"
-        "&nbsp;&nbsp;phoneNumber String?  // nouveau champ optionnel<br/>"
-        "}<br/><br/>"
-        "# 2. Appliquer la migration<br/>"
-        "npx prisma db push<br/><br/>"
-        "# 3. R&eacute;g&eacute;n&eacute;rer le client Prisma<br/>"
-        "npx prisma generate",
-        styles['CodeBlock']
-    ))
-
-    story.append(Paragraph("Ajouter un nouveau mod&egrave;le (table)", styles['SubSubSection']))
-    story.append(Paragraph(
-        "# 1. Ajouter le mod&egrave;le dans prisma/schema.prisma<br/>"
-        "model Notification {<br/>"
-        "&nbsp;&nbsp;id        String   @id @default(cuid())<br/>"
-        "&nbsp;&nbsp;userId    String<br/>"
-        "&nbsp;&nbsp;message   String<br/>"
-        "&nbsp;&nbsp;read      Boolean  @default(false)<br/>"
-        "&nbsp;&nbsp;createdAt DateTime @default(now())<br/>"
-        "&nbsp;&nbsp;user      User     @relation(fields: [userId], references: [id])<br/>"
-        "}<br/><br/>"
-        "# 2. Appliquer : npx prisma db push<br/>"
-        "# 3. Cr&eacute;er l'API : src/app/api/notifications/route.ts<br/>"
-        "# 4. Cr&eacute;er la page : src/app/(dashboard)/[role]/notifications/page.tsx",
-        styles['CodeBlock']
-    ))
-
-    story.append(Paragraph("Ajouter une nouvelle page", styles['SubSubSection']))
-    story.append(Paragraph(
-        "Pour ajouter une page accessible au professeur, cr&eacute;er le fichier :<br/>"
-        "<i>src/app/(dashboard)/professor/nouvelle-page/page.tsx</i><br/>"
-        "Le fichier doit exporter un composant React par d&eacute;faut. La page sera automatiquement "
-        "prot&eacute;g&eacute;e par le middleware (seuls les utilisateurs avec le r&ocirc;le PROFESSOR y acc&eacute;deront). "
-        "Pour ajouter la page au menu lat&eacute;ral, modifier <i>src/components/sidebar.tsx</i>.",
-        styles['BodyText2']
-    ))
-
-    story.append(Paragraph("8.3 Modifier les Param&egrave;tres du Syst&egrave;me", styles['SubSection']))
-
-    params_table = make_table(
-        ["Param&egrave;tre", "Fichier", "Valeur actuelle", "Comment modifier"],
+    s.append(Paragraph("14.2&nbsp;&nbsp;Correspondance théorie ↔ implémentation", ss["H2"]))
+    mapping_tbl = make_table(
+        ["Concept RO", "Implémentation technique"],
         [
-            ["Intervalle de rotation QR", "src/lib/qr/constants.ts", "20 secondes", "Changer DEFAULT_ROTATION_SEC"],
-            ["Longueur du token", "src/lib/qr/constants.ts", "8 caract&egrave;res hex", "Changer TOKEN_LENGTH (plus = plus s&ucirc;r mais QR plus dense)"],
-            ["Tol&eacute;rance de fen&ecirc;tre", "src/lib/qr/constants.ts", "1 fen&ecirc;tre", "Changer TOKEN_TOLERANCE_WINDOWS"],
-            ["D&eacute;calage d'horloge max", "src/lib/qr/constants.ts", "60 secondes", "Changer MAX_CLOCK_SKEW_SEC"],
-            ["Seuil de retard", "src/app/api/.../attendance/route.ts", "15 minutes", "Changer lateThresholdMs (en ms)"],
-            ["Rayon GPS par salle", "Administration &rarr; Salles", "60-150 m&egrave;tres", "Modifier le champ 'rayon' de la salle dans l'interface admin"],
-            ["Dur&eacute;e de session JWT", "src/lib/auth.ts", "24 heures", "Changer maxAge dans la config session"],
-            ["Fr&eacute;quence polling QR", "src/app/.../live/page.tsx", "2 secondes", "Changer l'intervalle du setInterval dans fetchToken"],
-            ["Taille du QR code", "src/app/.../live/page.tsx", "500 pixels", "Changer width dans QRCode.toCanvas()"],
+            ["Variable binaire x<sub>ij</sub> ∈ {0,1}",
+             "colonne <font face='Courier' size='8'>status</font> "
+             "(ABSENT / PRESENT / LATE / EXCUSED)"],
+            ["Contrainte d'unicité (C1)",
+             "contrainte SQL <font face='Courier' size='8'>UNIQUE(sessionId, studentId)</font>"],
+            ["Contrainte temporelle (C2)",
+             "HMAC-SHA256 avec compteur de fenêtres k = ⌊t / 10⌋"],
+            ["Contrainte géographique (C3)",
+             "formule de Haversine + Room.radius par salle"],
+            ["Contrainte cryptographique (C4)",
+             "secret 32 octets&nbsp;; timingSafeEqual à la vérification"],
+            ["Contrainte d'appareil (C5)",
+             "SHA-256 de (UserAgent + résolution + langue), dédup par séance"],
+            ["Fonction objectif multi-critère Z",
+             "tableau de bord prof — couverture, taux vérifié, temps"],
+            ["Décomposition par séance",
+             "indépendance des séances → scalabilité horizontale"],
         ],
-        col_widths=[3*cm, 3.5*cm, 2.5*cm, 6*cm]
+        col_widths=[6 * cm, 9.5 * cm],
     )
-    story.append(params_table)
-    story.append(Paragraph("Tableau 13 : Param&egrave;tres configurables", styles['Caption']))
+    s.append(mapping_tbl)
+    s.append(Paragraph("Tableau 12 — De la formalisation au code",
+                       ss["Caption"]))
 
-    story.append(Paragraph("Commandes utiles", styles['SubSubSection']))
-    story.append(Paragraph(
-        "npm run dev          # Lancer le serveur de d&eacute;veloppement (localhost:3000)<br/>"
-        "npm run build        # Compiler pour la production (g&eacute;n&egrave;re Prisma + build Next.js)<br/>"
-        "npx prisma studio    # Ouvrir l'interface graphique de la base de donn&eacute;es<br/>"
-        "npx prisma db push   # Appliquer les changements du sch&eacute;ma &agrave; la base<br/>"
-        "npx prisma db seed   # R&eacute;-ins&eacute;rer les donn&eacute;es de test<br/>"
-        "npx prisma generate  # R&eacute;g&eacute;n&eacute;rer le client TypeScript apr&egrave;s modification du sch&eacute;ma",
-        styles['CodeBlock']
-    ))
+    s.append(Paragraph("14.3&nbsp;&nbsp;Limites assumées", ss["H2"]))
+    s.append(bullet(
+        "Le <b>GPS smartphone</b> a une précision de 5 à 20 m en intérieur "
+        "— d'où le statut « non vérifié » plutôt qu'un rejet automatique."))
+    s.append(bullet(
+        "Le <b>fingerprint d'appareil</b> est heuristique, pas une preuve "
+        "forte&nbsp;: deux modèles identiques produisent la même empreinte. "
+        "Décourage la fraude opportuniste, pas un attaquant déterminé."))
+    s.append(bullet(
+        "L'<b>horloge du smartphone</b> est vérifiée côté serveur "
+        "(tolérance ±60 s). Au-delà, le scan est rejeté avec message "
+        "explicite."))
+    s.append(bullet(
+        "Le <b>scan exige la caméra</b> — donc HTTPS. En réseau interne "
+        "sans HTTPS, la caméra refuse l'accès dans les navigateurs modernes."))
 
-    story.append(PageBreak())
+    s.append(Paragraph("14.4&nbsp;&nbsp;Pistes futures", ss["H2"]))
+    s.append(bullet(
+        "Analyse temporelle de l'assiduité par cours et par étudiant&nbsp;; "
+        "détection automatique des décrochages."))
+    s.append(bullet(
+        "Alertes au professeur quand un étudiant dépasse un seuil "
+        "d'absences."))
+    s.append(bullet(
+        "Export PDF des feuilles de présence en complément du CSV."))
+    s.append(bullet(
+        "Mode hors-ligne pour les zones à mauvaise couverture réseau "
+        "(synchronisation différée)."))
+    s.append(bullet(
+        "Intégration directe avec Konosys pour synchronisation automatique "
+        "des rosters."))
 
-    # ═══════════════════════════════════════════════════════════
-    # 9. CONCLUSION
-    # ═══════════════════════════════════════════════════════════
-    story.append(Paragraph("9. Conclusion et Am&eacute;liorations Futures", styles['SectionTitle']))
-    story.append(hr())
+    s.append(PageBreak())
 
-    story.append(Paragraph("9.1 R&eacute;sultats Obtenus", styles['SubSection']))
-    story.append(Paragraph(
-        "Le syst&egrave;me UEMF Pr&eacute;sence r&eacute;pond &agrave; tous les objectifs fix&eacute;s :",
-        styles['BodyText2']
-    ))
+    # ════════════════════════════════════════════════════════════════════════
+    # § 15 — GLOSSAIRE
+    # ════════════════════════════════════════════════════════════════════════
+    s.append(Paragraph("§ 15 — Glossaire technique", ss["H1"]))
+    s.append(hr())
 
-    results = [
-        "<b>R&eacute;duction de 96% du temps d'appel</b> : de ~8 min &agrave; ~20 secondes pour 30 &eacute;tudiants",
-        "<b>&Eacute;limination quasi-totale des erreurs</b> : processus enti&egrave;rement automatis&eacute;",
-        "<b>4 couches anti-fraude</b> : rotation des tokens, g&eacute;olocalisation, empreinte appareil, comparaison s&ucirc;re",
-        "<b>Donn&eacute;es exploitables</b> : export CSV, statistiques en temps r&eacute;el, historique complet",
-        "<b>D&eacute;ploy&eacute; dans le cloud</b> : accessible depuis n'importe quel appareil via Vercel + Neon PostgreSQL",
-        "<b>Production-ready</b> : validation Zod, error boundaries, gestion des r&ocirc;les, interface compl&egrave;te en fran&ccedil;ais",
+    s.append(Paragraph("15.1&nbsp;&nbsp;Recherche Opérationnelle", ss["H2"]))
+    glo_ro = [
+        ("Variable de décision",
+         "Inconnue que le modèle fixe. Ici, x<sub>ij</sub> ∈ {0,1} = présence."),
+        ("Fonction objectif",
+         "Quantité scalaire à maximiser ou minimiser."),
+        ("Contrainte",
+         "Condition à respecter. Inégalité, égalité, ou logique."),
+        ("Optimisation combinatoire",
+         "Optimisation sur un ensemble fini de solutions discrètes."),
+        ("Multi-objectif",
+         "Plusieurs critères à optimiser. Approche&nbsp;: scalarisation pondérée."),
+        ("Analyse de sensibilité",
+         "Étude de la variation de la solution optimale en fonction des paramètres."),
     ]
-    for r in results:
-        story.append(bullet(r))
+    s.append(make_table(["Terme", "Définition"], glo_ro,
+                        col_widths=[4.5 * cm, 11 * cm]))
 
-    story.append(Paragraph("9.2 Valeurs de la Fonction Objectif", styles['SubSection']))
-    story.append(Paragraph(
-        "En &eacute;valuant la fonction objectif Z = &alpha;&middot;Z<sub>1</sub> + &beta;&middot;Z<sub>2</sub> + &gamma;&middot;Z<sub>3</sub> "
-        "avec les r&eacute;sultats obtenus :",
-        styles['BodyText2']
-    ))
-
-    obj_table = make_table(
-        ["Composante", "Valeur", "Explication"],
-        [
-            ["Z<sub>1</sub> (Couverture)", "~0.95", "95% des &eacute;tudiants scannent eux-m&ecirc;mes (5% de probl&egrave;mes techniques GPS/cam&eacute;ra)"],
-            ["Z<sub>2</sub> (V&eacute;rification GPS)", "~0.85", "85% des pr&eacute;sences sont g&eacute;o-v&eacute;rifi&eacute;es (15% de GPS impr&eacute;cis en int&eacute;rieur)"],
-            ["Z<sub>3</sub> (Efficacit&eacute; temporelle)", "0.958", "1 - (25s / 600s) = 95.8% de r&eacute;duction"],
-            ["<b>Z total</b>", "<b>0.928</b>", "0.4 &times; 0.95 + 0.3 &times; 0.85 + 0.3 &times; 0.958 = 0.9224"],
-        ],
-        col_widths=[3.5*cm, 2*cm, 9.5*cm]
-    )
-    story.append(obj_table)
-    story.append(Paragraph("Tableau 14 : &Eacute;valuation de la fonction objectif", styles['Caption']))
-
-    story.append(Paragraph("9.3 Am&eacute;liorations Futures", styles['SubSection']))
-
-    future = [
-        "<b>Int&eacute;gration Konosys</b> : API de synchronisation avec le syst&egrave;me existant de l'UEMF pour importer automatiquement les listes d'&eacute;tudiants",
-        "<b>Application mobile native (PWA)</b> : notifications push, acc&egrave;s hors-ligne, installation sur l'&eacute;cran d'accueil",
-        "<b>Analytiques avanc&eacute;es</b> : graphiques de tendance, pr&eacute;diction d'absent&eacute;isme par machine learning",
-        "<b>Notifications automatiques</b> : alertes email/SMS pour les &eacute;tudiants avec un taux de pr&eacute;sence insuffisant",
-        "<b>Module OR avanc&eacute;</b> : optimisation de l'emploi du temps en fonction des taux de pr&eacute;sence (programmation lin&eacute;aire)",
-        "<b>Reconnaissance faciale</b> : couche suppl&eacute;mentaire de v&eacute;rification d'identit&eacute; (5&egrave;me couche anti-fraude)",
+    s.append(Paragraph("15.2&nbsp;&nbsp;Cryptographie et sécurité", ss["H2"]))
+    glo_crypto = [
+        ("HMAC-SHA256",
+         "Code d'authentification de message basé sur SHA-256. Prouve intégrité + authenticité."),
+        ("TOTP (RFC 6238)",
+         "Time-based One-Time Password. Schéma qui dérive un mot de passe court d'un secret partagé et du temps. Notre QR rotatif s'en inspire."),
+        ("bcrypt",
+         "Fonction de hashage de mots de passe volontairement coûteuse, résiste au brute-force."),
+        ("JWT",
+         "JSON Web Token&nbsp;: format standard de token d'auth signé par le serveur."),
+        ("Timing attack",
+         "Attaque qui mesure le temps de réponse pour deviner des informations."),
+        ("Défense en profondeur",
+         "Stratégie qui superpose plusieurs lignes de défense indépendantes."),
+        ("Fingerprint",
+         "Empreinte numérique d'un appareil dérivée de ses caractéristiques."),
     ]
-    for f in future:
-        story.append(bullet(f))
+    s.append(make_table(["Terme", "Définition"], glo_crypto,
+                        col_widths=[4.5 * cm, 11 * cm]))
 
-    story.append(Paragraph("9.4 Conclusion", styles['SubSection']))
-    story.append(Paragraph(
-        "Ce projet d&eacute;montre comment un probl&egrave;me concret d'optimisation universitaire peut &ecirc;tre "
-        "formul&eacute; comme un probl&egrave;me de recherche op&eacute;rationnelle avec des variables de d&eacute;cision binaires, "
-        "une fonction objectif multi-crit&egrave;re, et des contraintes formalis&eacute;es math&eacute;matiquement. "
-        "La solution impl&eacute;ment&eacute;e traduit ces contraintes th&eacute;oriques en m&eacute;canismes techniques concrets : "
-        "HMAC-SHA256 pour les contraintes de s&eacute;curit&eacute;, Haversine pour les contraintes g&eacute;ographiques, "
-        "et des contraintes de base de donn&eacute;es UNIQUE pour l'unicit&eacute;.",
-        styles['BodyText2']
-    ))
-    story.append(Spacer(1, 0.3*cm))
-    story.append(Paragraph(
-        "Le syst&egrave;me est enti&egrave;rement fonctionnel, d&eacute;ploy&eacute; dans le cloud (Vercel + Neon PostgreSQL), "
-        "accessible depuis n'importe quel appareil, et pr&ecirc;t &agrave; &ecirc;tre utilis&eacute; &agrave; l'&eacute;chelle de "
-        "l'universit&eacute;. Le code source complet, la documentation, et les donn&eacute;es de test sont "
-        "disponibles sur le d&eacute;p&ocirc;t GitHub.",
-        styles['BodyText2']
-    ))
-    story.append(Spacer(1, 0.5*cm))
-    story.append(Paragraph(
-        "Code source : <b>github.com/MouhssineElBoumshouli/Student-Attendance-System</b>",
-        ParagraphStyle('final', parent=styles['BodyText2'], alignment=TA_CENTER,
-                      backColor=LIGHT_BG, borderPadding=(12, 12, 12, 12))
-    ))
+    s.append(Paragraph("15.3&nbsp;&nbsp;Web et développement", ss["H2"]))
+    glo_web = [
+        ("Frontend",
+         "Partie du logiciel qui tourne dans le navigateur de l'utilisateur."),
+        ("Backend",
+         "Partie qui tourne sur un serveur (API, BDD, logique métier)."),
+        ("API REST",
+         "Style d'API où chaque ressource a une URL et où l'on agit dessus via GET, POST, PATCH, DELETE."),
+        ("SGBD relationnel",
+         "Système de gestion de base de données basé sur les tables et relations."),
+        ("ACID",
+         "Atomicité, Cohérence, Isolation, Durabilité — propriétés des transactions."),
+        ("ORM",
+         "Object-Relational Mapper&nbsp;: pont entre objets et tables SQL."),
+        ("HTTPS",
+         "HTTP chiffré via TLS. Empêche l'écoute du trafic réseau."),
+        ("CSV (RFC 4180)",
+         "Format texte&nbsp;: lignes de valeurs séparées par des virgules."),
+    ]
+    s.append(make_table(["Terme", "Définition"], glo_web,
+                        col_widths=[4.5 * cm, 11 * cm]))
 
-    # ─── Build ────────────────────────────────────────────────
-    doc.build(story)
-    print(f"Report generated: {output_path}")
-    return output_path
+    s.append(Paragraph("15.4&nbsp;&nbsp;Géolocalisation et QR", ss["H2"]))
+    glo_geo = [
+        ("Haversine",
+         "Formule qui calcule la longueur du plus court arc géodésique entre deux points sur une sphère."),
+        ("Geofence",
+         "Zone géographique définie par un point central et un rayon."),
+        ("QR code",
+         "Code-barres 2D capable d'encoder du texte, lu par une caméra."),
+        ("Token rotatif",
+         "Token cryptographique qui change automatiquement à intervalle régulier."),
+    ]
+    s.append(make_table(["Terme", "Définition"], glo_geo,
+                        col_widths=[4.5 * cm, 11 * cm]))
+
+    # -- Final block -------------------------------------------------------
+    s.append(Spacer(1, 1 * cm))
+    final = Table([[Paragraph(
+        "<b>Code source complet&nbsp;:</b> "
+        "github.com/MouhssineElBoumshouli/Student-Attendance-System<br/><br/>"
+        "<b>Stack&nbsp;:</b> Next.js 16 · React 19 · TypeScript · "
+        "Prisma 6 · PostgreSQL (Neon) · NextAuth · Tailwind v4 · "
+        "déployé sur Vercel",
+        ss["uBody"])]], colWidths=[15.6 * cm])
+    final.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), CARD_BG),
+        ("LINEBEFORE", (0, 0), (0, -1), 3, GOLD),
+        ("TOPPADDING", (0, 0), (-1, -1), 12),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
+        ("LEFTPADDING", (0, 0), (-1, -1), 14),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 14),
+    ]))
+    s.append(final)
+
+    doc.build(s, onFirstPage=add_page_decorations,
+              onLaterPages=add_page_decorations)
+    print(f"Report generated: {out}")
+    return out
 
 
 if __name__ == "__main__":
