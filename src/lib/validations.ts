@@ -72,10 +72,10 @@ export const createSessionSchema = z.object({
 });
 
 // ─── Attendance submission ───────────────────────────────────
+// studentId comes from the authenticated session, not the request body.
 export const submitAttendanceSchema = z.object({
   token: z.string().min(1),
   timestamp: z.number().int().positive(),
-  studentId: z.string().min(1),
   latitude: z.number().min(-90).max(90).nullable().optional(),
   longitude: z.number().min(-180).max(180).nullable().optional(),
   deviceInfo: z.string().optional(),

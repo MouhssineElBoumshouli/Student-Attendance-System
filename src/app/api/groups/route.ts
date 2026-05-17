@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireApiAuth, requireApiRole } from "@/lib/api-auth";
 
 export async function GET() {
+  const auth = await requireApiAuth();
+  if ("error" in auth) return auth.error;
+
   const groups = await prisma.group.findMany({
     include: {
       program: { include: { department: true } },
@@ -13,6 +17,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireApiRole(["ADMIN"]);
+  if ("error" in auth) return auth.error;
+
   try {
     const body = await req.json();
     const { name, programId, semester } = body;
@@ -33,6 +40,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const auth = await requireApiRole(["ADMIN"]);
+  if ("error" in auth) return auth.error;
+
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 

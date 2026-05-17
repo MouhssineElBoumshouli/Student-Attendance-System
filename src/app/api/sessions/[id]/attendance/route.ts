@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { validateQrToken } from "@/lib/qr/validate";
 import { isWithinGeofence } from "@/lib/geo/validate";
 import { submitAttendanceSchema, updateAttendanceSchema, parseBody } from "@/lib/validations";
+import { requireApiAuth, requireApiRole } from "@/lib/api-auth";
 import crypto from "crypto";
 
 /**
@@ -13,6 +14,9 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireApiAuth();
+  if ("error" in auth) return auth.error;
+
   const { id } = await params;
 
   const attendances = await prisma.attendance.findMany({
@@ -34,12 +38,24 @@ export async function GET(
  * POST /api/sessions/[id]/attendance
  *
  * Student scans QR code and submits attendance.
- * Validates: token, geolocation, uniqueness, device fingerprint.
+ * The studentId is taken from the authenticated session — the client
+ * cannot mark someone else present by submitting a different id.
  */
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireApiRole(["STUDENT"]);
+  if ("error" in auth) return auth.error;
+
+  const studentId = auth.session.user.studentId;
+  if (!studentId) {
+    return NextResponse.json(
+      { error: "Compte étudiant introuvable" },
+      { status: 403 }
+    );
+  }
+
   const { id: sessionId } = await params;
 
   try {
@@ -53,7 +69,7 @@ export async function POST(
       );
     }
 
-    const { token, timestamp, latitude, longitude, studentId, deviceInfo } = parsed.data;
+    const { token, timestamp, latitude, longitude, deviceInfo } = parsed.data;
 
     // 1. Check session exists and is active
     const session = await prisma.session.findUnique({
@@ -104,7 +120,7 @@ export async function POST(
       );
     }
 
-    if (attendance.status === "PRESENT") {
+    if (attendance.status === "PRESENT" || attendance.status === "LATE") {
       return NextResponse.json(
         { error: "Présence déjà enregistrée", alreadyPresent: true },
         { status: 409 }
@@ -142,12 +158,12 @@ export async function POST(
           sessionId,
           deviceHash,
           studentId: { not: studentId },
-          status: "PRESENT",
+          status: { in: ["PRESENT", "LATE"] },
         },
       });
 
       if (sameDevice) {
-        // Flag both but still record — professor will review
+        // Flag as unverified but still record — professor will review
         verified = false;
       }
     }
@@ -166,8 +182,8 @@ export async function POST(
       data: {
         status: isLate ? "LATE" : "PRESENT",
         scannedAt: now,
-        latitude: latitude || null,
-        longitude: longitude || null,
+        latitude: latitude ?? null,
+        longitude: longitude ?? null,
         deviceHash,
         ipAddress,
         verified,
@@ -194,12 +210,15 @@ export async function POST(
 
 /**
  * PATCH /api/sessions/[id]/attendance
- * Professor manually updates a student's attendance status.
+ * Professor or admin manually overrides a student's attendance status.
  */
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireApiRole(["ADMIN", "PROFESSOR"]);
+  if ("error" in auth) return auth.error;
+
   const { id: sessionId } = await params;
   const body = await req.json();
   const parsed = parseBody(updateAttendanceSchema, body);
@@ -210,10 +229,29 @@ export async function PATCH(
 
   const { attendanceId, status } = parsed.data;
 
-  const attendance = await prisma.attendance.update({
-    where: { id: attendanceId, sessionId },
+  // Look up first to verify the record belongs to this session — Prisma's
+  // `update.where` only accepts a unique input so we can't filter on
+  // `sessionId` directly.
+  const existing = await prisma.attendance.findUnique({
+    where: { id: attendanceId },
+    include: { session: { select: { professorId: true } } },
+  });
+
+  if (!existing || existing.sessionId !== sessionId) {
+    return NextResponse.json({ error: "Présence introuvable" }, { status: 404 });
+  }
+
+  if (
+    auth.session.user.role === "PROFESSOR" &&
+    existing.session.professorId !== auth.session.user.professorId
+  ) {
+    return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+  }
+
+  const updated = await prisma.attendance.update({
+    where: { id: attendanceId },
     data: { status, verified: true },
   });
 
-  return NextResponse.json(attendance);
+  return NextResponse.json(updated);
 }

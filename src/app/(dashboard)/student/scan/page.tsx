@@ -81,7 +81,6 @@ export default function StudentScanPage() {
           timestamp,
           latitude,
           longitude,
-          studentId: session.user.studentId,
           deviceInfo,
         }),
       });

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireApiRole } from "@/lib/api-auth";
 
 /**
  * POST /api/sessions/[id]/deactivate
@@ -12,12 +13,22 @@ export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireApiRole(["ADMIN", "PROFESSOR"]);
+  if ("error" in auth) return auth.error;
+
   const { id } = await params;
 
   const session = await prisma.session.findUnique({ where: { id } });
 
   if (!session) {
     return NextResponse.json({ error: "Séance non trouvée" }, { status: 404 });
+  }
+
+  if (
+    auth.session.user.role === "PROFESSOR" &&
+    session.professorId !== auth.session.user.professorId
+  ) {
+    return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
   }
 
   if (session.status !== "ACTIVE") {

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateSessionSecret } from "@/lib/qr/generate";
+import { DEFAULT_ROTATION_SEC } from "@/lib/qr/constants";
+import { requireApiRole } from "@/lib/api-auth";
 
 /**
  * POST /api/sessions/[id]/activate
@@ -8,12 +10,16 @@ import { generateSessionSecret } from "@/lib/qr/generate";
  * Activates a session:
  * 1. Generates a cryptographic secret for QR token rotation
  * 2. Sets session status to ACTIVE
- * 3. Pre-creates ABSENT attendance records for all enrolled students
+ * 3. Pre-creates ABSENT attendance records for any enrolled student that
+ *    doesn't already have one (preserves prior scans on re-activation).
  */
 export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireApiRole(["ADMIN", "PROFESSOR"]);
+  if ("error" in auth) return auth.error;
+
   const { id } = await params;
 
   const session = await prisma.session.findUnique({
@@ -39,6 +45,14 @@ export async function POST(
     return NextResponse.json({ error: "Séance non trouvée" }, { status: 404 });
   }
 
+  // A professor can only activate their own sessions.
+  if (
+    auth.session.user.role === "PROFESSOR" &&
+    session.professorId !== auth.session.user.professorId
+  ) {
+    return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+  }
+
   if (session.status === "ACTIVE") {
     return NextResponse.json({ error: "Séance déjà active" }, { status: 400 });
   }
@@ -58,24 +72,21 @@ export async function POST(
     }
   }
 
-  // Update session to ACTIVE and pre-create attendance records
   await prisma.$transaction([
     prisma.session.update({
       where: { id },
-      data: { status: "ACTIVE", qrSecret },
+      data: { status: "ACTIVE", qrSecret, qrRotationSec: DEFAULT_ROTATION_SEC },
     }),
-    // Delete any existing attendance records (in case of re-activation)
-    prisma.attendance.deleteMany({ where: { sessionId: id } }),
-    // Create ABSENT records for all enrolled students
-    ...Array.from(studentIds).map((studentId) =>
-      prisma.attendance.create({
-        data: {
-          sessionId: id,
-          studentId,
-          status: "ABSENT",
-        },
-      })
-    ),
+    // Insert ABSENT rows for newly-enrolled students only; skipDuplicates
+    // preserves any existing attendance from a prior activation cycle.
+    prisma.attendance.createMany({
+      data: Array.from(studentIds).map((studentId) => ({
+        sessionId: id,
+        studentId,
+        status: "ABSENT",
+      })),
+      skipDuplicates: true,
+    }),
   ]);
 
   return NextResponse.json({

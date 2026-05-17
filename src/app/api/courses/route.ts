@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireApiAuth, requireApiRole } from "@/lib/api-auth";
 
 export async function GET() {
+  const auth = await requireApiAuth();
+  if ("error" in auth) return auth.error;
+
   const courses = await prisma.course.findMany({
     include: {
       professor: { include: { user: { select: { firstName: true, lastName: true } } } },
@@ -15,6 +19,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireApiRole(["ADMIN"]);
+  if ("error" in auth) return auth.error;
+
   try {
     const body = await req.json();
     const { name, code, programId, professorId, semester, academicYear, totalHours, groupIds } = body;

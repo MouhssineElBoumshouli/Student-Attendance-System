@@ -1,27 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateQrToken } from "@/lib/qr/generate";
+import { requireApiRole } from "@/lib/api-auth";
 
 /**
  * GET /api/sessions/[id]/qr-token
  *
- * Returns the current QR token for an active session.
- * The professor's browser polls this endpoint every few seconds
- * to get the latest rotating token.
+ * Returns the current QR token for an active session. Only the session's
+ * owning professor (or an admin) may read it — otherwise students could
+ * fetch the live token directly and skip the camera.
  */
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireApiRole(["ADMIN", "PROFESSOR"]);
+  if ("error" in auth) return auth.error;
+
   const { id } = await params;
 
   const session = await prisma.session.findUnique({
     where: { id },
-    select: { qrSecret: true, qrRotationSec: true, status: true },
+    select: { qrSecret: true, qrRotationSec: true, status: true, professorId: true },
   });
 
   if (!session) {
     return NextResponse.json({ error: "Séance non trouvée" }, { status: 404 });
+  }
+
+  if (
+    auth.session.user.role === "PROFESSOR" &&
+    session.professorId !== auth.session.user.professorId
+  ) {
+    return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
   }
 
   if (session.status !== "ACTIVE" || !session.qrSecret) {

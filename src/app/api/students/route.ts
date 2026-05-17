@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { requireApiAuth, requireApiRole } from "@/lib/api-auth";
 
 export async function GET() {
+  const auth = await requireApiAuth();
+  if ("error" in auth) return auth.error;
+
   const students = await prisma.student.findMany({
     include: {
       user: { select: { id: true, email: true, firstName: true, lastName: true } },
@@ -14,6 +18,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireApiRole(["ADMIN"]);
+  if ("error" in auth) return auth.error;
+
   try {
     const body = await req.json();
     const { firstName, lastName, email, studentId, enrollmentYear, groupId, password } = body;
@@ -57,13 +64,16 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const auth = await requireApiRole(["ADMIN"]);
+  if ("error" in auth) return auth.error;
+
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 
   if (!id) return NextResponse.json({ error: "ID requis" }, { status: 400 });
 
   const student = await prisma.student.findUnique({ where: { id } });
-  if (!student) return NextResponse.json({ error: "Non trouve" }, { status: 404 });
+  if (!student) return NextResponse.json({ error: "Non trouvé" }, { status: 404 });
 
   await prisma.user.delete({ where: { id: student.userId } });
   return NextResponse.json({ success: true });

@@ -1,11 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireApiAuth } from "@/lib/api-auth";
 
 export async function GET(req: NextRequest) {
+  const auth = await requireApiAuth();
+  if ("error" in auth) return auth.error;
+
   const { searchParams } = new URL(req.url);
   const role = searchParams.get("role");
   const professorId = searchParams.get("professorId");
   const studentId = searchParams.get("studentId");
+
+  // A user can only request analytics for themselves (admins get everything).
+  if (auth.session.user.role === "PROFESSOR" && professorId !== auth.session.user.professorId) {
+    return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+  }
+  if (auth.session.user.role === "STUDENT" && studentId !== auth.session.user.studentId) {
+    return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+  }
+  if (role === "ADMIN" && auth.session.user.role !== "ADMIN") {
+    return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+  }
 
   if (role === "ADMIN") {
     const [studentCount, professorCount, courseCount, activeSessions] =

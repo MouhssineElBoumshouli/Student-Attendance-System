@@ -24,17 +24,16 @@ export const authOptions: NextAuthOptions = {
           },
         });
 
-        if (!user) {
-          throw new Error("Aucun compte trouvé avec cet email");
-        }
-
+        // Always run bcrypt to avoid leaking account existence via timing.
+        const dummyHash =
+          "$2a$10$CwTycUXWue0Thq9StjUM0uJ8.K9rEr5MJWnGCnXC4kqUz5j7q5p3a";
         const isPasswordValid = await bcrypt.compare(
           credentials.password,
-          user.passwordHash
+          user?.passwordHash ?? dummyHash
         );
 
-        if (!isPasswordValid) {
-          throw new Error("Mot de passe incorrect");
+        if (!user || !isPasswordValid) {
+          throw new Error("Email ou mot de passe incorrect");
         }
 
         return {
