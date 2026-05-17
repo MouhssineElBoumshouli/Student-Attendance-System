@@ -5,9 +5,9 @@ import { TOKEN_LENGTH } from "./constants";
  * Generate a time-based QR token using HMAC-SHA256.
  * Similar to TOTP but adapted for attendance.
  *
- * @param secret - The session's unique secret (hex string)
- * @param intervalSec - Rotation interval in seconds
- * @returns Object with token, current timestamp, and expiration
+ * The returned `timestamp` is the start of the current rotation window
+ * (counter * intervalSec) so that the QR payload is stable for the full
+ * window — the QR image doesn't have to re-render every poll.
  */
 export function generateQrToken(
   secret: string,
@@ -15,6 +15,7 @@ export function generateQrToken(
 ): { token: string; timestamp: number; expiresAt: number } {
   const now = Math.floor(Date.now() / 1000);
   const counter = Math.floor(now / intervalSec);
+  const windowStart = counter * intervalSec;
 
   const hmac = crypto.createHmac("sha256", secret);
   hmac.update(counter.toString());
@@ -22,7 +23,7 @@ export function generateQrToken(
 
   const expiresAt = (counter + 1) * intervalSec * 1000;
 
-  return { token, timestamp: now, expiresAt };
+  return { token, timestamp: windowStart, expiresAt };
 }
 
 /**

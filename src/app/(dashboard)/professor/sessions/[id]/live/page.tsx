@@ -15,43 +15,44 @@ export default function LiveQrPage() {
   const [connected, setConnected] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [countdown, setCountdown] = useState(0);
-  const [intervalSec, setIntervalSec] = useState(20);
+  const [intervalSec, setIntervalSec] = useState(10);
+  const [expiresAt, setExpiresAt] = useState<number>(0);
   const lastPayloadRef = useRef("");
   const [sessionInfo, setSessionInfo] = useState<{
     courseName: string; roomName: string; presentCount: number; totalCount: number;
   } | null>(null);
 
-  // Fetch session info (attendance counts)
+  // ─── Attendance counter poll (every 5s) ───────────────────────
   useEffect(() => {
+    let cancelled = false;
     const fetchInfo = async () => {
       try {
         const res = await fetch(`/api/sessions/${sessionId}`);
-        if (res.ok) {
-          const data = await res.json();
-          const present = data.attendances?.filter(
-            (a: { status: string }) => a.status === "PRESENT" || a.status === "LATE"
-          ).length || 0;
-          setSessionInfo({
-            courseName: data.course?.name || "",
-            roomName: data.room?.name || "",
-            presentCount: present,
-            totalCount: data.attendances?.length || 0,
-          });
-        }
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        const present = data.attendances?.filter(
+          (a: { status: string }) => a.status === "PRESENT" || a.status === "LATE"
+        ).length || 0;
+        setSessionInfo({
+          courseName: data.course?.name || "",
+          roomName: data.room?.name || "",
+          presentCount: present,
+          totalCount: data.attendances?.length || 0,
+        });
       } catch { /* ignore */ }
     };
     fetchInfo();
     const poll = setInterval(fetchInfo, 5000);
-    return () => clearInterval(poll);
+    return () => { cancelled = true; clearInterval(poll); };
   }, [sessionId]);
 
-  // Poll for QR token every 2 seconds
+  // ─── QR token fetch — scheduled at window expiry, not polled ──
   const fetchToken = useCallback(async () => {
     try {
       const res = await fetch(`/api/sessions/${sessionId}/qr-token`);
       if (!res.ok) {
         setConnected(false);
-        return;
+        return null;
       }
 
       const data = await res.json();
@@ -59,16 +60,18 @@ export default function LiveQrPage() {
       if (data.closed) {
         setConnected(false);
         router.push(`/professor/sessions/${sessionId}`);
-        return;
+        return null;
       }
 
       setConnected(true);
-      setIntervalSec(data.intervalSec || 20);
+      setIntervalSec(data.intervalSec || 10);
+      setExpiresAt(data.expiresAt);
 
-      // Only re-render QR if the payload actually changed
+      // Re-render the QR canvas only when the payload actually changes
+      // (the server now returns a stable payload per rotation window).
       if (canvasRef.current && data.payload && data.payload !== lastPayloadRef.current) {
         lastPayloadRef.current = data.payload;
-        QRCode.toCanvas(canvasRef.current, data.payload, {
+        await QRCode.toCanvas(canvasRef.current, data.payload, {
           width: 500,
           margin: 3,
           color: { dark: "#000000", light: "#ffffff" },
@@ -76,29 +79,43 @@ export default function LiveQrPage() {
         });
       }
 
-      // Update countdown
-      if (data.expiresAt) {
-        const remaining = Math.max(1, Math.floor((data.expiresAt - Date.now()) / 1000));
-        setCountdown(remaining);
-      }
+      return data.expiresAt as number;
     } catch {
       setConnected(false);
+      return null;
     }
   }, [sessionId, router]);
 
   useEffect(() => {
-    fetchToken();
-    const poll = setInterval(fetchToken, 2000);
-    return () => clearInterval(poll);
+    let cancelled = false;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+
+    const loop = async () => {
+      if (cancelled) return;
+      const expiry = await fetchToken();
+      if (cancelled) return;
+      // Schedule the next fetch just after the current window expires.
+      // Fall back to a short retry if the server didn't return an expiry
+      // (e.g. transient network failure).
+      const delay = expiry ? Math.max(100, expiry - Date.now() + 200) : 2000;
+      timeout = setTimeout(loop, delay);
+    };
+
+    loop();
+    return () => { cancelled = true; if (timeout) clearTimeout(timeout); };
   }, [fetchToken]);
 
-  // Countdown timer (visual only, ticks every second)
+  // ─── Smooth countdown derived from expiresAt ──────────────────
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdown((prev) => Math.max(0, prev - 1));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
+    if (!expiresAt) return;
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+      setCountdown(remaining);
+    };
+    tick();
+    const i = setInterval(tick, 200);
+    return () => clearInterval(i);
+  }, [expiresAt]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -170,7 +187,7 @@ export default function LiveQrPage() {
               strokeLinecap="round"
               strokeDasharray={`${countdownPercent * 3.01} 301`}
               transform="rotate(-90 50 50)"
-              className="transition-all duration-1000 ease-linear"
+              className="transition-[stroke-dasharray,stroke] duration-200 ease-linear"
             />
           </svg>
 

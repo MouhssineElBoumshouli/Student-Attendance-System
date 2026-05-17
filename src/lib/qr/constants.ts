@@ -1,5 +1,5 @@
 // QR rotation interval in seconds
-export const DEFAULT_ROTATION_SEC = 20;
+export const DEFAULT_ROTATION_SEC = 10;
 
 // How many windows (past) to accept when validating a token
 // 1 = accept current + 1 previous window (handles boundary scanning)
