@@ -71,11 +71,15 @@ model Group {
 // ─── People ───
 
 model Professor {
-  id           String  @id @default(cuid())
-  userId       String  @unique
-  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  employeeId   String  @unique
-  departmentId String?
+  id                 String  @id @default(cuid())
+  userId             String  @unique
+  user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  employeeId         String  @unique
+  departmentId       String?
+  // Bound on first check-in. Subsequent check-ins from a different
+  // device hash are flagged as "non vérifié" (suspected account sharing).
+  trustedDeviceHash  String?
+  trustedDeviceAt    DateTime?
 
   courses  Course[]
   sessions Session[]
@@ -84,11 +88,15 @@ model Professor {
 }
 
 model Student {
-  id             String @id @default(cuid())
-  userId         String @unique
-  user           User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  studentId      String @unique
-  enrollmentYear Int
+  id                 String @id @default(cuid())
+  userId             String @unique
+  user               User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  studentId          String @unique
+  enrollmentYear     Int
+  // Bound on first check-in. Subsequent check-ins from a different
+  // device hash are flagged as "non vérifié" (suspected account sharing).
+  trustedDeviceHash  String?
+  trustedDeviceAt    DateTime?
 
   groups      StudentGroup[]
   attendances Attendance[]
@@ -184,6 +192,8 @@ model Session {
   professorLatitude   Float?
   professorLongitude  Float?
   professorDeviceHash String?
+  professorVerificationFlags String?
+  professorSelfie     String?  // base64 JPEG, see Attendance.selfiePhoto
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -233,6 +243,14 @@ model Attendance {
   deviceHash String?
   ipAddress  String?
   verified   Boolean   @default(false)
+  // Per-check-in flags accumulated from the four-layer verification.
+  // Possible values include: "DEVICE_MISMATCH", "DEVICE_SHARED",
+  // "GPS_OUT_OF_RANGE", "GPS_UNAVAILABLE". Comma-separated string.
+  verificationFlags String?
+  // Front-camera selfie captured at check-in (base64-encoded JPEG, <100 KB).
+  // Stored so the prof can review borderline cases at the end of class.
+  // Deleted after 30 days by cleanup cron (TODO).
+  selfiePhoto String?
   createdAt  DateTime  @default(now())
 
   @@unique([sessionId, studentId])

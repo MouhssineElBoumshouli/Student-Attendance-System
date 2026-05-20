@@ -21,6 +21,7 @@ import {
   X,
   Layers,
   UsersRound,
+  Hand,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -45,6 +46,7 @@ const adminNav: NavItem[] = [
 
 const professorNav: NavItem[] = [
   { label: "Tableau de bord", href: "/", icon: LayoutDashboard },
+  { label: "Je suis là", href: "/checkin", icon: Hand },
   { label: "Mes cours", href: "/professor/courses", icon: BookOpen },
   { label: "Séances", href: "/professor/sessions", icon: CalendarDays },
   { label: "Rapports", href: "/professor/reports", icon: BarChart3 },
@@ -52,6 +54,7 @@ const professorNav: NavItem[] = [
 
 const studentNav: NavItem[] = [
   { label: "Tableau de bord", href: "/", icon: LayoutDashboard },
+  { label: "Je suis là", href: "/checkin", icon: Hand },
   { label: "Scanner QR", href: "/student/scan", icon: QrCode },
   { label: "Mon historique", href: "/student/history", icon: History },
 ];

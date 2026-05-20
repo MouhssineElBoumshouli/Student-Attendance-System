@@ -92,6 +92,17 @@ export const submitAttendanceSchema = z.object({
   deviceInfo: z.string().optional(),
 });
 
+// ─── Self check-in (no QR token, app-driven) ─────────────────
+export const selfCheckinSchema = z.object({
+  latitude: z.number().min(-90).max(90).nullable().optional(),
+  longitude: z.number().min(-180).max(180).nullable().optional(),
+  deviceInfo: z.string().optional(),
+  // Front-camera selfie, base64-encoded JPEG/PNG data URL
+  // (e.g. "data:image/jpeg;base64,/9j/..."). Optional — accepted but
+  // flagged as "non vérifié" if missing.
+  selfie: z.string().max(500_000).optional(),
+});
+
 // ─── Attendance manual update ────────────────────────────────
 export const updateAttendanceSchema = z.object({
   attendanceId: z.string().min(1),

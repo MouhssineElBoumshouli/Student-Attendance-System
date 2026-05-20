@@ -11,13 +11,15 @@ import {
 } from "@/components/ui/select";
 import {
   ArrowLeft, Play, Ban, Loader2, Users, Clock, MapPin,
-  CheckCircle2, XCircle, AlertTriangle, MinusCircle, GraduationCap,
+  CheckCircle2, XCircle, AlertTriangle, MinusCircle, GraduationCap, Camera, X,
 } from "lucide-react";
 import { formatDate, formatTime } from "@/lib/utils";
 import { toast } from "sonner";
 
 interface Attendance {
   id: string; status: string; scannedAt: string | null; verified: boolean;
+  verificationFlags?: string | null;
+  selfiePhoto?: string | null;
   student: { id: string; studentId: string; user: { firstName: string; lastName: string } };
 }
 
@@ -73,6 +75,7 @@ export default function SessionDetailPage() {
   const [session, setSession] = useState<SessionDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [photoModal, setPhotoModal] = useState<{ name: string; src: string } | null>(null);
 
   const fetchSession = useCallback(async () => {
     const res = await fetch(`/api/sessions/${sessionId}`);
@@ -279,20 +282,36 @@ export default function SessionDetailPage() {
                         )}
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <Select
-                          value={att.status}
-                          onValueChange={(v) => handleStatusChange(att.id, v)}
-                        >
-                          <SelectTrigger className="w-32 h-8 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="PRESENT">Présent</SelectItem>
-                            <SelectItem value="ABSENT">Absent</SelectItem>
-                            <SelectItem value="LATE">En retard</SelectItem>
-                            <SelectItem value="EXCUSED">Excusé</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <div className="flex items-center justify-end gap-1">
+                          {att.selfiePhoto && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-gray-500 hover:text-blue-600"
+                              title="Voir la photo de check-in"
+                              onClick={() => setPhotoModal({
+                                name: `${att.student.user.firstName} ${att.student.user.lastName}`,
+                                src: att.selfiePhoto!,
+                              })}
+                            >
+                              <Camera className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Select
+                            value={att.status}
+                            onValueChange={(v) => handleStatusChange(att.id, v)}
+                          >
+                            <SelectTrigger className="w-32 h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="PRESENT">Présent</SelectItem>
+                              <SelectItem value="ABSENT">Absent</SelectItem>
+                              <SelectItem value="LATE">En retard</SelectItem>
+                              <SelectItem value="EXCUSED">Excusé</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -302,6 +321,39 @@ export default function SessionDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Selfie viewer modal */}
+      {photoModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+          onClick={() => setPhotoModal(null)}
+        >
+          <div
+            className="bg-white rounded-2xl p-4 max-w-sm w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-gray-900">{photoModal.name}</h3>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setPhotoModal(null)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element -- base64 data URL, next/image doesn't help here */}
+            <img
+              src={photoModal.src}
+              alt={`Photo de check-in de ${photoModal.name}`}
+              className="w-full rounded-lg"
+            />
+            <p className="text-xs text-gray-500 mt-2 text-center">
+              Photo capturée au moment du check-in
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
