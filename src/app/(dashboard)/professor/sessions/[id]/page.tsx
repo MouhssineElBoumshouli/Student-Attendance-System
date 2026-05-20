@@ -10,8 +10,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  ArrowLeft, Play, Square, Loader2, Users, Clock, MapPin,
-  CheckCircle2, XCircle, AlertTriangle, MinusCircle,
+  ArrowLeft, Play, Ban, Loader2, Users, Clock, MapPin,
+  CheckCircle2, XCircle, AlertTriangle, MinusCircle, GraduationCap,
 } from "lucide-react";
 import { formatDate, formatTime } from "@/lib/utils";
 import { toast } from "sonner";
@@ -22,9 +22,18 @@ interface Attendance {
 }
 
 interface SessionDetail {
-  id: string; date: string; startTime: string; endTime: string; status: string;
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+  effectiveStatus: "SCHEDULED" | "ACTIVE" | "COMPLETED" | "CANCELLED";
   course: { name: string; code: string };
   room: { name: string; building: string | null };
+  professor: { user: { firstName: string; lastName: string } };
+  professorStatus: string;
+  professorScannedAt: string | null;
+  professorVerified: boolean;
   attendances: Attendance[];
 }
 
@@ -43,14 +52,27 @@ const statusBadge: Record<string, "success" | "destructive" | "warning" | "defau
   PRESENT: "success", ABSENT: "destructive", LATE: "warning", EXCUSED: "default",
 };
 
+const effectiveLabel: Record<string, string> = {
+  SCHEDULED: "Planifiée",
+  ACTIVE: "En cours",
+  COMPLETED: "Terminée",
+  CANCELLED: "Annulée",
+};
+
+const effectiveBadgeVariant: Record<string, "default" | "secondary" | "success" | "destructive"> = {
+  SCHEDULED: "secondary",
+  ACTIVE: "success",
+  COMPLETED: "default",
+  CANCELLED: "destructive",
+};
+
 export default function SessionDetailPage() {
   const params = useParams();
   const router = useRouter();
   const sessionId = params.id as string;
   const [session, setSession] = useState<SessionDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activating, setActivating] = useState(false);
-  const [deactivating, setDeactivating] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   const fetchSession = useCallback(async () => {
     const res = await fetch(`/api/sessions/${sessionId}`);
@@ -63,41 +85,28 @@ export default function SessionDetailPage() {
 
   useEffect(() => {
     fetchSession();
-    // Poll every 10s if session is active
-    const interval = setInterval(() => {
-      fetchSession();
-    }, 10000);
+    const interval = setInterval(() => { fetchSession(); }, 10000);
     return () => clearInterval(interval);
   }, [fetchSession]);
 
-  const handleActivate = async () => {
-    setActivating(true);
+  const handleCancel = async () => {
+    if (!confirm("Annuler cette séance ? Les étudiants ne pourront plus se présenter.")) return;
+    setCancelling(true);
     try {
-      const res = await fetch(`/api/sessions/${sessionId}/activate`, { method: "POST" });
-      const data = await res.json();
+      const res = await fetch(`/api/sessions/${sessionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "CANCELLED" }),
+      });
       if (res.ok) {
-        toast.success(data.message);
+        toast.success("Séance annulée");
         await fetchSession();
       } else {
-        toast.error(data.error);
+        const data = await res.json();
+        toast.error(data.error || "Erreur");
       }
     } catch { toast.error("Erreur serveur"); }
-    finally { setActivating(false); }
-  };
-
-  const handleDeactivate = async () => {
-    setDeactivating(true);
-    try {
-      const res = await fetch(`/api/sessions/${sessionId}/deactivate`, { method: "POST" });
-      const data = await res.json();
-      if (res.ok) {
-        toast.success(data.message);
-        await fetchSession();
-      } else {
-        toast.error(data.error);
-      }
-    } catch { toast.error("Erreur serveur"); }
-    finally { setDeactivating(false); }
+    finally { setCancelling(false); }
   };
 
   const handleStatusChange = async (attendanceId: string, newStatus: string) => {
@@ -129,6 +138,13 @@ export default function SessionDetailPage() {
   const total = session.attendances.length;
   const rate = total > 0 ? Math.round(((present + late) / total) * 100) : 0;
 
+  const isActive = session.effectiveStatus === "ACTIVE";
+  const isCancellable =
+    session.effectiveStatus === "SCHEDULED" || session.effectiveStatus === "ACTIVE";
+
+  const profPresent =
+    session.professorStatus === "PRESENT" || session.professorStatus === "LATE";
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -148,30 +164,48 @@ export default function SessionDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {session.status === "SCHEDULED" && (
-            <Button onClick={handleActivate} disabled={activating} className="bg-emerald-600 hover:bg-emerald-700">
-              {activating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-              Activer la séance
+          {isActive && (
+            <Link href={`/professor/sessions/${sessionId}/live`}>
+              <Button className="bg-emerald-600 hover:bg-emerald-700">
+                <Play className="h-4 w-4" /> Afficher QR
+              </Button>
+            </Link>
+          )}
+          {isCancellable && (
+            <Button variant="outline" onClick={handleCancel} disabled={cancelling}>
+              {cancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />}
+              Annuler la séance
             </Button>
           )}
-          {session.status === "ACTIVE" && (
-            <>
-              <Link href={`/professor/sessions/${sessionId}/live`}>
-                <Button className="bg-emerald-600 hover:bg-emerald-700">
-                  <Play className="h-4 w-4" /> Afficher QR
-                </Button>
-              </Link>
-              <Button variant="outline" onClick={handleDeactivate} disabled={deactivating}>
-                {deactivating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Square className="h-4 w-4" />}
-                Terminer
-              </Button>
-            </>
-          )}
-          <Badge variant={session.status === "ACTIVE" ? "success" : session.status === "COMPLETED" ? "default" : "secondary"}>
-            {session.status === "ACTIVE" ? "En cours" : session.status === "COMPLETED" ? "Terminée" : session.status === "CANCELLED" ? "Annulée" : "Planifiée"}
+          <Badge variant={effectiveBadgeVariant[session.effectiveStatus] || "secondary"}>
+            {effectiveLabel[session.effectiveStatus] || "Planifiée"}
           </Badge>
         </div>
       </div>
+
+      {/* Professor attendance card */}
+      <Card className={profPresent ? "border-emerald-200 bg-emerald-50/30" : "border-amber-200 bg-amber-50/30"}>
+        <CardContent className="p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-lg ${profPresent ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+              <GraduationCap className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-900">
+                Pr {session.professor.user.firstName} {session.professor.user.lastName}
+              </p>
+              <p className="text-xs text-gray-500">
+                {profPresent && session.professorScannedAt
+                  ? `Présent à ${formatTime(session.professorScannedAt)}${session.professorVerified ? " — GPS OK" : " — non vérifié"}`
+                  : "Présence professeur non encore enregistrée"}
+              </p>
+            </div>
+          </div>
+          <Badge variant={statusBadge[session.professorStatus] || "destructive"}>
+            {statusLabel[session.professorStatus] || "Absent"}
+          </Badge>
+        </CardContent>
+      </Card>
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
@@ -202,8 +236,8 @@ export default function SessionDetailPage() {
         <CardContent className="p-0">
           {total === 0 ? (
             <div className="text-center py-8 text-gray-500 text-sm">
-              {session.status === "SCHEDULED"
-                ? "Activez la séance pour générer la liste de présence"
+              {session.effectiveStatus === "SCHEDULED"
+                ? "La liste sera générée à l'ouverture de la séance"
                 : "Aucun étudiant inscrit"}
             </div>
           ) : (

@@ -12,6 +12,7 @@ import {
   Users,
   DoorOpen,
   CalendarDays,
+  CalendarClock,
   BarChart3,
   QrCode,
   History,
@@ -38,6 +39,7 @@ const adminNav: NavItem[] = [
   { label: "Professeurs", href: "/admin/professors", icon: GraduationCap },
   { label: "Étudiants", href: "/admin/students", icon: Users },
   { label: "Cours", href: "/admin/courses", icon: BookOpen },
+  { label: "Emploi du temps", href: "/admin/schedule", icon: CalendarClock },
   { label: "Analytiques", href: "/admin/analytics", icon: BarChart3 },
 ];
 

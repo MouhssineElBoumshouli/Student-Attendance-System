@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createSessionSchema, parseBody } from "@/lib/validations";
 import { requireApiAuth, requireApiRole } from "@/lib/api-auth";
+import { effectiveStatus } from "@/lib/session-status";
 
 export async function GET(req: NextRequest) {
   const auth = await requireApiAuth();
@@ -28,7 +29,9 @@ export async function GET(req: NextRequest) {
     orderBy: { date: "desc" },
   });
 
-  return NextResponse.json(sessions);
+  return NextResponse.json(
+    sessions.map((s) => ({ ...s, effectiveStatus: effectiveStatus(s) }))
+  );
 }
 
 export async function POST(req: NextRequest) {

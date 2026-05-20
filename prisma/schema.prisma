@@ -118,7 +118,8 @@ model Room {
   capacity  Int?
   createdAt DateTime @default(now())
 
-  sessions Session[]
+  sessions     Session[]
+  scheduleRules ScheduleRule[]
 
   @@map("rooms")
 }
@@ -136,8 +137,9 @@ model Course {
   totalHours   Int?
   createdAt    DateTime  @default(now())
 
-  groups   CourseGroup[]
-  sessions Session[]
+  groups        CourseGroup[]
+  sessions      Session[]
+  scheduleRules ScheduleRule[]
 
   @@map("courses")
 }
@@ -165,9 +167,23 @@ model Session {
   date           DateTime
   startTime      DateTime
   endTime        DateTime
-  status         String   @default("SCHEDULED") // SCHEDULED | ACTIVE | COMPLETED | CANCELLED
+  // Status is mostly computed from clock time at read time
+  // (see lib/session-status.ts). This column stores only manual overrides:
+  //   - "CANCELLED" if a professor/admin explicitly cancelled the session
+  //   - null/empty otherwise (status derived from startTime/endTime)
+  status         String   @default("SCHEDULED")
   qrSecret       String?
-  qrRotationSec  Int      @default(20)
+  qrRotationSec  Int      @default(10)
+  // Link back to the recurring rule that generated this session (if any)
+  scheduleRuleId String?
+  scheduleRule   ScheduleRule? @relation(fields: [scheduleRuleId], references: [id], onDelete: SetNull)
+  // Professor attendance — recorded independently of student attendance
+  professorStatus     String   @default("ABSENT") // PRESENT | ABSENT | LATE | EXCUSED
+  professorScannedAt  DateTime?
+  professorVerified   Boolean  @default(false)
+  professorLatitude   Float?
+  professorLongitude  Float?
+  professorDeviceHash String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -175,7 +191,33 @@ model Session {
 
   @@index([courseId, date])
   @@index([professorId, status])
+  @@index([scheduleRuleId])
   @@map("sessions")
+}
+
+// Recurring schedule rule. One rule = one weekly slot for a course
+// (e.g. "RO-501, every Tuesday 10:30–12:00 in Amphi A, Sep 15 → Jan 20").
+// When materialized, generates one Session per matching date in the range.
+model ScheduleRule {
+  id             String    @id @default(cuid())
+  courseId       String
+  course         Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  roomId         String
+  room           Room      @relation(fields: [roomId], references: [id])
+  dayOfWeek      Int       // 0 = Sunday, 1 = Monday, …, 6 = Saturday
+  startTime      String    // "HH:MM"
+  endTime        String    // "HH:MM"
+  startDate      DateTime  // first date to consider
+  endDate        DateTime  // last date to consider (inclusive)
+  active         Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  sessions Session[]
+
+  @@index([courseId])
+  @@index([roomId, dayOfWeek])
+  @@map("schedule_rules")
 }
 
 model Attendance {

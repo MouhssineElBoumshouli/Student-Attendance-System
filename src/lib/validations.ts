@@ -71,6 +71,17 @@ export const createSessionSchema = z.object({
   endTime: z.string().regex(/^\d{2}:\d{2}$/, "Format d'heure invalide"),
 });
 
+// ─── Schedule Rule ───────────────────────────────────────────
+export const createScheduleRuleSchema = z.object({
+  courseId: z.string().cuid(),
+  roomId: z.string().cuid(),
+  dayOfWeek: z.coerce.number().int().min(0).max(6),
+  startTime: z.string().regex(/^\d{2}:\d{2}$/, "Format d'heure invalide"),
+  endTime: z.string().regex(/^\d{2}:\d{2}$/, "Format d'heure invalide"),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide"),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide"),
+});
+
 // ─── Attendance submission ───────────────────────────────────
 // studentId comes from the authenticated session, not the request body.
 export const submitAttendanceSchema = z.object({

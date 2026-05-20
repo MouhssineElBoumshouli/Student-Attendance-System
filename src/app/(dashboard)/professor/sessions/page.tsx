@@ -10,7 +10,9 @@ import { Plus, CalendarDays, Loader2, Play, Eye, Clock } from "lucide-react";
 import { formatDate, formatTime } from "@/lib/utils";
 
 interface Session {
-  id: string; date: string; startTime: string; endTime: string; status: string;
+  id: string; date: string; startTime: string; endTime: string;
+  status: string;
+  effectiveStatus: "SCHEDULED" | "ACTIVE" | "COMPLETED" | "CANCELLED";
   course: { name: string; code: string };
   room: { name: string; building: string | null };
   _count: { attendances: number };
@@ -58,7 +60,8 @@ export default function ProfessorSessionsPage() {
       ) : (
         <div className="space-y-3">
           {sessions.map((s) => {
-            const cfg = statusConfig[s.status] || statusConfig.SCHEDULED;
+            const status = s.effectiveStatus || s.status;
+            const cfg = statusConfig[status] || statusConfig.SCHEDULED;
             return (
               <Card key={s.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4 sm:p-5">
@@ -80,7 +83,7 @@ export default function ProfessorSessionsPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant={cfg.variant}>{cfg.label}</Badge>
-                      {s.status === "ACTIVE" && (
+                      {status === "ACTIVE" && (
                         <Link href={`/professor/sessions/${s.id}/live`}>
                           <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700">
                             <Play className="h-3.5 w-3.5" /> QR Code

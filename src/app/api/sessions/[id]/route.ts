@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireApiAuth, requireApiRole } from "@/lib/api-auth";
+import { effectiveStatus } from "@/lib/session-status";
 
 export async function GET(
   _req: NextRequest,
@@ -44,7 +45,10 @@ export async function GET(
     return NextResponse.json({ error: "Séance non trouvée" }, { status: 404 });
   }
 
-  return NextResponse.json(session);
+  return NextResponse.json({
+    ...session,
+    effectiveStatus: effectiveStatus(session),
+  });
 }
 
 /**
