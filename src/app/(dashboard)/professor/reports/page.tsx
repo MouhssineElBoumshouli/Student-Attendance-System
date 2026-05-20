@@ -20,7 +20,12 @@ interface Course {
 }
 
 interface SessionRecord {
-  id: string; date: string; startTime: string; endTime: string; status: string;
+  id: string; date: string; startTime: string; endTime: string;
+  status: string;
+  effectiveStatus?: string;
+  professorStatus?: string;
+  professorScannedAt?: string | null;
+  professorVerified?: boolean;
   course: { name: string; code: string };
   room: { name: string };
   _count: { attendances: number };
@@ -56,7 +61,7 @@ export default function ProfessorReportsPage() {
     ]).then(([c, s]) => {
       const myCourses = c.filter((course: Course) => course.professorId === authSession.user.professorId);
       setCourses(myCourses);
-      setSessions(s.filter((sess: SessionRecord) => sess.status === "COMPLETED"));
+      setSessions(s.filter((sess: SessionRecord) => (sess.effectiveStatus || sess.status) === "COMPLETED"));
       setLoading(false);
     });
   }, [authSession]);
@@ -87,10 +92,37 @@ export default function ProfessorReportsPage() {
     }
   };
 
-  const exportCsv = () => {
+  const exportCsv = async () => {
     if (attendances.length === 0) { toast.error("Aucune donnée à exporter"); return; }
 
     const session = sessions.find((s) => s.id === selectedSession);
+    if (!session) return;
+
+    // Fetch the full session detail to get the professor attendance fields
+    const detailRes = await fetch(`/api/sessions/${selectedSession}`);
+    const detail = detailRes.ok ? await detailRes.json() : null;
+
+    const profStatusLabel = detail
+      ? (statusConfig[detail.professorStatus]?.label || detail.professorStatus || "Absent")
+      : "—";
+    const profTime = detail?.professorScannedAt ? formatTime(detail.professorScannedAt) : "";
+    const profVerified = detail?.professorScannedAt ? (detail.professorVerified ? "Oui" : "Non") : "";
+    const profName = detail?.professor
+      ? `Pr ${detail.professor.user.firstName} ${detail.professor.user.lastName}`
+      : "";
+
+    // Header block: session metadata + professor attendance summary
+    const meta: string[][] = [
+      ["# Séance", `${session.course.name} (${session.course.code})`],
+      ["# Date", formatDate(session.date)],
+      ["# Salle", session.room.name],
+      ["# Professeur", profName],
+      ["# Statut professeur", profStatusLabel],
+      ["# Heure d'arrivée prof", profTime],
+      ["# GPS vérifié prof", profVerified],
+      [""],
+    ];
+
     const headers = ["Nom", "Prénom", "Email", "N° Étudiant", "Statut", "Heure scan", "Vérifié"];
     const rows = attendances.map((a) => [
       a.student.user.lastName,
@@ -105,14 +137,14 @@ export default function ProfessorReportsPage() {
     // RFC 4180: wrap every field in quotes and escape inner quotes by doubling.
     const csvCell = (v: string | number | null | undefined) =>
       `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const csv = [headers, ...rows]
+    const csv = [...meta, headers, ...rows]
       .map((r) => r.map(csvCell).join(","))
       .join("\r\n");
     const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `presence_${session?.course.code}_${session?.date ? formatDate(session.date).replace(/\//g, "-") : "export"}.csv`;
+    a.download = `presence_${session.course.code}_${session.date ? formatDate(session.date).replace(/\//g, "-") : "export"}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success("Export CSV téléchargé");
