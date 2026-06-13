@@ -1,36 +1,82 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# UEMF Présence
 
-## Getting Started
+Système de gestion automatique des présences universitaires — QR code
+rotatif, check-in géolocalisé « Je suis là », présence des étudiants
+**et** des professeurs, emploi du temps récurrent, tableau d'anomalies
+pour l'administration.
 
-First, run the development server:
+Projet du module **Recherche Opérationnelle** (Pr Ahmed El Hilali Alaoui)
+— EIDIA, Université Euro-Méditerranéenne de Fès, 2025–2026.
+
+**Équipe :** Mouhssine El Boumshouli · Yassine Hamda Benchkroune ·
+Badr Lasri · Mohamed Amine Hajji
+
+## Tester sans rien installer
+
+Le projet est déployé en ligne :
+
+**https://student-attendance-system-amber.vercel.app**
+
+Comptes de démonstration (mot de passe : `password123`) :
+
+| Rôle | Email |
+|---|---|
+| Administrateur | `admin@eidia.ueuromed.org` |
+| Professeur (RO) | `hicham.tazi@eidia.ueuromed.org` |
+| Étudiant | `imane.saidi@eidia.ueuromed.org` |
+
+Tous les noms (professeurs, étudiants) sont fictifs.
+
+## Lancer en local
+
+Prérequis : [Node.js LTS](https://nodejs.org).
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Puis ouvrir http://localhost:3000. Le fichier `.env` (base de données
+cloud Neon PostgreSQL) est inclus — aucune configuration nécessaire.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Fonctionnement en bref
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. L'admin définit l'emploi du temps (créneaux hebdomadaires récurrents
+   ou import CSV) — les séances du semestre sont générées automatiquement.
+2. Chaque séance **s'ouvre et se ferme toute seule** à l'heure prévue
+   (statut calculé depuis l'horloge, aucun clic).
+3. Étudiants et professeur marquent leur présence depuis leur téléphone :
+   bouton « Je suis là » (GPS + appareil + photo de contrôle) ou scan du
+   QR rotatif (HMAC-SHA256, change toutes les 10 s).
+4. Quatre vérifications anti-fraude tournent à chaque check-in — un échec
+   ne bloque jamais : la présence est marquée « à vérifier » et le
+   professeur tranche, photo à l'appui.
+5. Rapports CSV, historique par étudiant, et tableau d'anomalies pour la
+   direction (séances sans professeur, classement des absences…).
 
-## Learn More
+## Modélisation RO
 
-To learn more about Next.js, take a look at the following resources:
+Optimisation combinatoire : variables binaires x_ij ∈ {0, 1} (présence de
+l'étudiant i à la séance j), fonction objectif multi-critère
+Z = α·Z₁ + β·Z₂ + γ·Z₃ (couverture, vérification, gain de temps),
+sous cinq contraintes — unicité (C1), temporelle (C2), géographique /
+Haversine (C3), cryptographique / HMAC (C4), appareil unique (C5).
+Voir `report/` pour le rapport complet.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Stack
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Next.js 16 · React 19 · TypeScript · Prisma 6 · PostgreSQL (Neon) ·
+NextAuth · Tailwind CSS v4 — déployé sur Vercel.
 
-## Deploy on Vercel
+## Structure
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Dossier | Rôle |
+|---|---|
+| `src/app/(dashboard)/` | Pages admin / professeur / étudiant / check-in |
+| `src/app/api/` | API : sessions, présences, check-in, emploi du temps, analytiques |
+| `src/lib/qr/` | Tokens QR rotatifs (HMAC-SHA256) |
+| `src/lib/geo/` | Géofence GPS (formule de Haversine) |
+| `src/lib/session-status.ts` | Statut des séances dérivé de l'horloge |
+| `src/lib/schedule.ts` | Matérialisation de l'emploi du temps |
+| `prisma/` | Schéma de données + seed de démonstration |
+| `report/` | Générateurs des rapports PDF (défense + description) |
