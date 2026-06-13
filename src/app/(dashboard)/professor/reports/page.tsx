@@ -66,9 +66,11 @@ export default function ProfessorReportsPage() {
     });
   }, [authSession]);
 
-  const filteredSessions = selectedCourse
-    ? sessions.filter((s) => s.course.code === courses.find((c) => c.id === selectedCourse)?.code)
-    : sessions;
+  const selectedCourseCode = courses.find((c) => c.id === selectedCourse)?.code;
+  const filteredSessions =
+    selectedCourse && selectedCourse !== "all" && selectedCourseCode
+      ? sessions.filter((s) => s.course.code === selectedCourseCode)
+      : sessions;
 
   useEffect(() => {
     if (!selectedSession) return;

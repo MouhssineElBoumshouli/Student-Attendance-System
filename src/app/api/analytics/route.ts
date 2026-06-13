@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireApiAuth } from "@/lib/api-auth";
+import {
+  ACTIVE_OPEN_OFFSET_MS,
+  ACTIVE_CLOSE_BUFFER_MS,
+} from "@/lib/session-status";
 
 export async function GET(req: NextRequest) {
   const auth = await requireApiAuth();
@@ -22,13 +26,30 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
   }
 
+  const now = new Date();
+  // Session status is derived from clock time (see lib/session-status.ts),
+  // so "currently active" and "already finished" are time-range queries,
+  // not status-column lookups.
+  const activeWindow = {
+    startTime: { lte: new Date(now.getTime() + ACTIVE_OPEN_OFFSET_MS) },
+    endTime: { gte: new Date(now.getTime() - ACTIVE_CLOSE_BUFFER_MS) },
+    status: { not: "CANCELLED" },
+  };
+  // A session counts toward attendance stats only once its active window
+  // has fully closed — otherwise the semester's pre-created ABSENT rows
+  // (from schedule-rule materialization) would tank every rate to ~0.
+  const finishedSession = {
+    endTime: { lt: new Date(now.getTime() - ACTIVE_CLOSE_BUFFER_MS) },
+    status: { not: "CANCELLED" },
+  };
+
   if (role === "ADMIN") {
     const [studentCount, professorCount, courseCount, activeSessions] =
       await Promise.all([
         prisma.student.count(),
         prisma.professor.count(),
         prisma.course.count(),
-        prisma.session.count({ where: { status: "ACTIVE" } }),
+        prisma.session.count({ where: activeWindow }),
       ]);
 
     return NextResponse.json({
@@ -40,20 +61,20 @@ export async function GET(req: NextRequest) {
   }
 
   if (role === "PROFESSOR" && professorId) {
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const [courseCount, monthSessions, attendanceStats] = await Promise.all([
       prisma.course.count({ where: { professorId } }),
       prisma.session.count({
         where: {
           professorId,
-          date: {
-            gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-          },
+          date: { gte: monthStart, lte: now },
+          status: { not: "CANCELLED" },
         },
       }),
       prisma.attendance.groupBy({
         by: ["status"],
         where: {
-          session: { professorId, status: "COMPLETED" },
+          session: { professorId, ...finishedSession },
         },
         _count: true,
       }),
@@ -73,26 +94,29 @@ export async function GET(req: NextRequest) {
   }
 
   if (role === "STUDENT" && studentId) {
-    const attendances = await prisma.attendance.findMany({
-      where: { studentId },
-      select: { status: true },
-    });
-
-    const total = attendances.length;
-    const present = attendances.filter((a) => a.status === "PRESENT" || a.status === "LATE").length;
-    const rate = total > 0 ? Math.round((present / total) * 100) : 0;
-
-    const monthPresent = await prisma.attendance.count({
-      where: {
-        studentId,
-        status: { in: ["PRESENT", "LATE"] },
-        session: {
-          date: {
-            gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const [attendances, monthPresent] = await Promise.all([
+      prisma.attendance.findMany({
+        where: { studentId, session: finishedSession },
+        select: { status: true },
+      }),
+      prisma.attendance.count({
+        where: {
+          studentId,
+          status: { in: ["PRESENT", "LATE"] },
+          session: {
+            date: { gte: monthStart },
+            status: { not: "CANCELLED" },
           },
         },
-      },
-    });
+      }),
+    ]);
+
+    const total = attendances.length;
+    const present = attendances.filter(
+      (a) => a.status === "PRESENT" || a.status === "LATE"
+    ).length;
+    const rate = total > 0 ? Math.round((present / total) * 100) : 0;
 
     return NextResponse.json({
       attendanceRate: rate,

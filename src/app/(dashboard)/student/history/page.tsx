@@ -13,7 +13,7 @@ import { formatDate, formatTime } from "@/lib/utils";
 interface AttendanceRecord {
   id: string; status: string; scannedAt: string | null; verified: boolean;
   session: {
-    id: string; date: string; startTime: string; endTime: string; status: string;
+    id: string; date: string; startTime: string; endTime: string;
     course: { name: string; code: string };
     room: { name: string };
   };
@@ -34,47 +34,14 @@ export default function StudentHistoryPage() {
   useEffect(() => {
     if (!session?.user?.studentId) return;
 
-    // Fetch all sessions and find this student's attendance
-    fetch("/api/sessions")
+    // Single endpoint returns the full history in one query
+    fetch("/api/me/history")
       .then((r) => r.json())
-      .then(async (sessions) => {
-        const allRecords: AttendanceRecord[] = [];
-
-        for (const s of sessions) {
-          if (s.status === "SCHEDULED") continue;
-          try {
-            const res = await fetch(`/api/sessions/${s.id}/attendance`);
-            if (res.ok) {
-              const attendances = await res.json();
-              const mine = attendances.find(
-                (a: { student: { id: string } }) => a.student.id === session.user.studentId
-              );
-              if (mine) {
-                allRecords.push({
-                  ...mine,
-                  session: {
-                    id: s.id,
-                    date: s.date,
-                    startTime: s.startTime,
-                    endTime: s.endTime,
-                    status: s.status,
-                    course: s.course,
-                    room: s.room,
-                  },
-                });
-              }
-            }
-          } catch { /* ignore */ }
-        }
-
-        // Sort by date descending
-        allRecords.sort((a, b) =>
-          new Date(b.session.date).getTime() - new Date(a.session.date).getTime()
-        );
-
-        setRecords(allRecords);
+      .then((records: AttendanceRecord[]) => {
+        setRecords(Array.isArray(records) ? records : []);
         setLoading(false);
-      });
+      })
+      .catch(() => setLoading(false));
   }, [session]);
 
   // Calculate stats

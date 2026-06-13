@@ -8,6 +8,7 @@ import { BookOpen, Loader2, Users } from "lucide-react";
 
 interface Course {
   id: string; name: string; code: string; semester: number; academicYear: string; totalHours: number | null;
+  professorId: string;
   program: { code: string };
   groups: { group: { id: string; name: string } }[];
   _count: { sessions: number };
@@ -19,12 +20,12 @@ export default function ProfessorCoursesPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const professorId = session?.user?.professorId;
+    if (!professorId) return;
     fetch("/api/courses")
       .then((r) => r.json())
       .then((all: Course[]) => {
-        // Filter courses for this professor (API returns all, we filter client-side)
-        // In production, the API would filter server-side
-        setCourses(all);
+        setCourses(all.filter((c) => c.professorId === professorId));
         setLoading(false);
       });
   }, [session]);

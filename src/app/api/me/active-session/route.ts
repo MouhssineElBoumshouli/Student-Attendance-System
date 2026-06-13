@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireApiAuth } from "@/lib/api-auth";
-import { isSessionOpen, effectiveStatus } from "@/lib/session-status";
+import {
+  isSessionOpen,
+  effectiveStatus,
+  ACTIVE_OPEN_OFFSET_MS,
+  ACTIVE_CLOSE_BUFFER_MS,
+} from "@/lib/session-status";
 
 /**
  * GET /api/me/active-session
@@ -20,10 +25,13 @@ export async function GET() {
   if ("error" in auth) return auth.error;
 
   const now = new Date();
-  // Look at sessions whose endTime is reasonably close to now (avoid
-  // scanning the full history).
-  const windowStart = new Date(now.getTime() - 30 * 60 * 1000); // 30 min ago
-  const windowEnd = new Date(now.getTime() + 30 * 60 * 1000);   // 30 min from now
+  // A session is in its active window when:
+  //   startTime - OPEN_OFFSET <= now <= endTime + CLOSE_BUFFER
+  // Filtering on startTime alone would miss long classes already underway
+  // (e.g. a 2h class that started 90 min ago). So: the session must have
+  // started (or be about to start) AND not yet have fully closed.
+  const startedBy = new Date(now.getTime() + ACTIVE_OPEN_OFFSET_MS);
+  const notClosedBefore = new Date(now.getTime() - ACTIVE_CLOSE_BUFFER_MS);
 
   if (auth.session.user.role === "PROFESSOR") {
     const professorId = auth.session.user.professorId;
@@ -32,7 +40,8 @@ export async function GET() {
     const candidates = await prisma.session.findMany({
       where: {
         professorId,
-        startTime: { gte: windowStart, lte: windowEnd },
+        startTime: { lte: startedBy },
+        endTime: { gte: notClosedBefore },
         status: { not: "CANCELLED" },
       },
       include: {
@@ -70,7 +79,8 @@ export async function GET() {
     const candidates = await prisma.session.findMany({
       where: {
         course: { groups: { some: { groupId: { in: groupIds } } } },
-        startTime: { gte: windowStart, lte: windowEnd },
+        startTime: { lte: startedBy },
+        endTime: { gte: notClosedBefore },
         status: { not: "CANCELLED" },
       },
       include: {
