@@ -36,8 +36,8 @@ npm install
 npm run dev
 ```
 
-Puis ouvrir http://localhost:3000. Le fichier `.env` (base de données
-cloud Neon PostgreSQL) est inclus — aucune configuration nécessaire.
+Puis ouvrir http://localhost:3000. Copier `.env.example` vers `.env`,
+puis renseigner sa propre base PostgreSQL et un secret NextAuth local.
 
 ## Fonctionnement en bref
 
