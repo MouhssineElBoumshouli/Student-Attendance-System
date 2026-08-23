@@ -1,82 +1,90 @@
-# UEMF Présence
+# UEMF Attendance
 
-Système de gestion automatique des présences universitaires — QR code
-rotatif, check-in géolocalisé « Je suis là », présence des étudiants
-**et** des professeurs, emploi du temps récurrent, tableau d'anomalies
-pour l'administration.
+Automated university attendance management system with rotating QR codes, GPS-based mobile check-in, student and professor attendance, recurring schedules, and an anomaly dashboard for administration.
 
-Projet du module **Recherche Opérationnelle** (Pr Ahmed El Hilali Alaoui)
-— EIDIA, Université Euro-Méditerranéenne de Fès, 2025–2026.
+Built for the **Operations Research** module at EIDIA, Université Euromed de Fès, during the 2025–2026 academic year.
 
-**Équipe :** Mouhssine El Boumshouli · Yassine Hamda Benchkroune ·
-Badr Lasri · Mohamed Amine Hajji
+**Team:** Mouhssine El Boumshouli · Yassine Hamda Benchkroune · Badr Lasri · Mohamed Amine Hajji
 
-## Tester sans rien installer
+## Live demo
 
-Le projet est déployé en ligne :
+The project is deployed online:
 
 **https://student-attendance-system-amber.vercel.app**
 
-Comptes de démonstration (mot de passe : `password123`) :
+Demo accounts use the password `password123`:
 
-| Rôle | Email |
+| Role | Email |
 |---|---|
-| Administrateur | `admin@eidia.ueuromed.org` |
-| Professeur (RO) | `hicham.tazi@eidia.ueuromed.org` |
-| Étudiant | `imane.saidi@eidia.ueuromed.org` |
+| Administrator | `admin@eidia.ueuromed.org` |
+| Professor | `hicham.tazi@eidia.ueuromed.org` |
+| Student | `imane.saidi@eidia.ueuromed.org` |
 
-Tous les noms (professeurs, étudiants) sont fictifs.
+All professor and student names used in the demo are fictional.
 
-## Lancer en local
+## Run locally
 
-Prérequis : [Node.js LTS](https://nodejs.org).
+Requirement: [Node.js LTS](https://nodejs.org).
 
 ```bash
 npm install
 npm run dev
 ```
 
-Puis ouvrir http://localhost:3000. Copier `.env.example` vers `.env`,
-puis renseigner sa propre base PostgreSQL et un secret NextAuth local.
+Then open http://localhost:3000. Copy `.env.example` to `.env`, then provide your own PostgreSQL connection and a local NextAuth secret.
 
-## Fonctionnement en bref
+## How it works
 
-1. L'admin définit l'emploi du temps (créneaux hebdomadaires récurrents
-   ou import CSV) — les séances du semestre sont générées automatiquement.
-2. Chaque séance **s'ouvre et se ferme toute seule** à l'heure prévue
-   (statut calculé depuis l'horloge, aucun clic).
-3. Étudiants et professeur marquent leur présence depuis leur téléphone :
-   bouton « Je suis là » (GPS + appareil + photo de contrôle) ou scan du
-   QR rotatif (HMAC-SHA256, change toutes les 10 s).
-4. Quatre vérifications anti-fraude tournent à chaque check-in — un échec
-   ne bloque jamais : la présence est marquée « à vérifier » et le
-   professeur tranche, photo à l'appui.
-5. Rapports CSV, historique par étudiant, et tableau d'anomalies pour la
-   direction (séances sans professeur, classement des absences…).
+1. An administrator defines the timetable using recurring weekly slots or CSV import, and semester sessions are generated automatically.
+2. Each session opens and closes automatically according to the schedule; no manual action is required.
+3. Students and professors can mark attendance from a phone using either the **I'm here** flow with GPS/device verification or a rotating QR code.
+4. QR tokens are protected with HMAC-SHA256 and rotate every 10 seconds.
+5. Anti-fraud checks run on every check-in. Suspicious attendance is flagged for professor review rather than silently rejected.
+6. The system provides CSV reports, per-student history, and an anomaly dashboard for administration.
 
-## Modélisation RO
+## Operations Research model
 
-Optimisation combinatoire : variables binaires x_ij ∈ {0, 1} (présence de
-l'étudiant i à la séance j), fonction objectif multi-critère
-Z = α·Z₁ + β·Z₂ + γ·Z₃ (couverture, vérification, gain de temps),
-sous cinq contraintes — unicité (C1), temporelle (C2), géographique /
-Haversine (C3), cryptographique / HMAC (C4), appareil unique (C5).
-Voir `report/` pour le rapport complet.
+The project models attendance verification as a combinatorial optimization problem with binary variables `x_ij ∈ {0,1}` for student `i` attending session `j`.
 
-## Stack
+The multi-criteria objective is:
 
-Next.js 16 · React 19 · TypeScript · Prisma 6 · PostgreSQL (Neon) ·
-NextAuth · Tailwind CSS v4 — déployé sur Vercel.
+`Z = α·Z₁ + β·Z₂ + γ·Z₃`
 
-## Structure
+covering attendance coverage, verification quality, and time savings under five constraints:
 
-| Dossier | Rôle |
+- uniqueness;
+- temporal validity;
+- geographic/Haversine validity;
+- cryptographic/HMAC validity;
+- unique-device checks.
+
+The academic report is available in `report/`.
+
+## Tech stack
+
+Next.js 16 · React 19 · TypeScript · Prisma 6 · PostgreSQL (Neon) · NextAuth · Tailwind CSS v4 · Vercel
+
+## Project structure
+
+| Path | Purpose |
 |---|---|
-| `src/app/(dashboard)/` | Pages admin / professeur / étudiant / check-in |
-| `src/app/api/` | API : sessions, présences, check-in, emploi du temps, analytiques |
-| `src/lib/qr/` | Tokens QR rotatifs (HMAC-SHA256) |
-| `src/lib/geo/` | Géofence GPS (formule de Haversine) |
-| `src/lib/session-status.ts` | Statut des séances dérivé de l'horloge |
-| `src/lib/schedule.ts` | Matérialisation de l'emploi du temps |
-| `prisma/` | Schéma de données + seed de démonstration |
-| `report/` | Générateurs des rapports PDF (défense + description) |
+| `src/app/(dashboard)/` | Administrator, professor, student and check-in pages |
+| `src/app/api/` | Sessions, attendance, check-in, schedule and analytics APIs |
+| `src/lib/qr/` | Rotating HMAC-SHA256 QR tokens |
+| `src/lib/geo/` | GPS geofencing using the Haversine formula |
+| `src/lib/session-status.ts` | Time-derived session status |
+| `src/lib/schedule.ts` | Recurring timetable materialization |
+| `prisma/` | Data schema and demo seed |
+| `report/` | Academic report generators |
+
+## Highlights
+
+- Recurring schedule generation
+- Automatic session state
+- GPS-based check-in
+- Rotating cryptographic QR tokens
+- Professor review workflow
+- Attendance history and CSV export
+- Administrative anomaly reporting
+
+> This repository contains a university project and uses demonstration data only.
